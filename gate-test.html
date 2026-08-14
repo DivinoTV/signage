@@ -39,7 +39,14 @@
 
 <script>
 /* ES5 only. No framework, no CDN. Self-contained on purpose.
-   Usage:  gate-test.html?video=<url to the H.264 test file>&img=<url to a still>
+
+   Usage:  just open gate-test.html — no parameters needed.
+   It reads the published playlist from Supabase and tests the first image and the
+   first video it finds there, so no URL is ever typed on a remote.
+
+   Optional overrides for a file that is not published yet:
+     gate-test.html?video=<url>&img=<url>
+
    Leave it running overnight, then compare day-1 vs day-2 egress in the Supabase
    dashboard for G3. */
 (function(){
@@ -76,23 +83,41 @@ verdict('c1', can('avc1.640028'));   /* High   */
 verdict('c2', can('avc1.4D401E'));   /* Main   */
 verdict('c3', can('avc1.42E01E'));   /* Baseline */
 
-/* N1 + M0 — plain XHR against PostgREST, exactly the TV app's critical path */
+/* N1 + M0 — plain XHR against PostgREST, exactly the TV app's critical path.
+   It also hands the media tests their URLs, so nothing has to be typed on a remote.
+   Typing a 120-character Supabase URL twice with a remote is not a test, it is a
+   coin flip — and it produced two false failures on the first gate run. */
 (function(){
   var x = new XMLHttpRequest();
-  x.open('GET', SUPABASE_URL+'/rest/v1/assets?select=id&limit=5', true);
+  x.open('GET', SUPABASE_URL+'/rest/v1/assets?select=media_url,media_type&is_active=eq.true&order=sort_order.asc', true);
   x.setRequestHeader('apikey', SUPABASE_ANON);
   x.setRequestHeader('Authorization', 'Bearer '+SUPABASE_ANON);
   x.onreadystatechange = function(){
     if(x.readyState!==4) return;
-    if(x.status>=200 && x.status<300){
-      set('n1','REACHABLE ('+x.status+')','ok');
-      var n='?'; try{ n=JSON.parse(x.responseText).length; }catch(e){}
-      set('n1r', String(n));
-    } else {
+    if(x.status<200 || x.status>=300){
       set('n1','BLOCKED (status '+x.status+')','bad');
+      set('n1r','-');
+      testVideo(param('video')); testImage(param('img'));
+      return;
     }
+    set('n1','REACHABLE ('+x.status+')','ok');
+    var rows = [];
+    try{ rows = JSON.parse(x.responseText) || []; }catch(e){}
+    set('n1r', String(rows.length));
+
+    /* first published asset of each kind; an explicit param still wins */
+    var firstVideo = '', firstImage = '', i;
+    for(i=0;i<rows.length;i++){
+      if(!firstVideo && rows[i].media_type==='video') firstVideo = rows[i].media_url;
+      if(!firstImage && rows[i].media_type==='image') firstImage = rows[i].media_url;
+    }
+    testVideo(param('video') || firstVideo);
+    testImage(param('img')   || firstImage);
   };
-  x.onerror = function(){ set('n1','BLOCKED (network)','bad'); };
+  x.onerror = function(){
+    set('n1','BLOCKED (network)','bad');
+    testVideo(param('video')); testImage(param('img'));
+  };
   x.send();
 })();
 
@@ -133,14 +158,14 @@ verdict('c3', can('avc1.42E01E'));   /* Baseline */
 })();
 
 /* G1 / G2 — leave it looping. A drop-out here is the gate failing, not a glitch. */
-(function(){
-  var url = param('video');
-  if(!url){ set('g1','no ?video= given','wait'); return; }
+function testVideo(url){
+  if(!url){ set('g1','no video published','wait'); return; }
   var loops = 0;
   v.addEventListener('playing', function(){ set('g1','PLAYING','ok'); }, false);
   v.addEventListener('error',   function(){
     var c = (v.error && v.error.code) || '?';
-    set('g1','FAILED (error code '+c+')','bad');
+    /* 4 = MEDIA_ERR_SRC_NOT_SUPPORTED — the file or codec, not the TV's autoplay policy */
+    set('g1','SOURCE FAILED (media error '+c+')','bad');
   }, false);
   v.addEventListener('stalled', function(){ set('g1','STALLED','bad'); }, false);
   /* loop fires seeked/timeupdate, not ended — count the wrap instead */
@@ -151,19 +176,27 @@ verdict('c3', can('avc1.42E01E'));   /* Baseline */
   }, false);
   v.src = url;
   var p = v.play();
-  if(p && p['catch']) p['catch'](function(){ set('g1','AUTOPLAY BLOCKED','bad'); });
+  if(p && p['catch']) p['catch'](function(e){
+    /* Distinguishing these matters: NotAllowedError means the TV's autoplay policy
+       refused (a real G1 failure and a design problem), NotSupportedError means the
+       file or codec is wrong (fix the file, the TV is fine). Reporting both as
+       "AUTOPLAY BLOCKED" sent us chasing the wrong gate once already. */
+    var n = (e && e.name) || 'unknown';
+    if(n === 'NotAllowedError')      set('g1','AUTOPLAY BLOCKED by the TV','bad');
+    else if(n === 'NotSupportedError') set('g1','SOURCE NOT SUPPORTED — check the file','bad');
+    else                              set('g1','play() rejected: '+n,'bad');
+  });
   setTimeout(function(){ if($('g1').innerHTML==='...') set('g1','NO START after 20s','bad'); }, 20000);
-})();
+}
 
 /* still image — proves plain media loads even if video is out of scope */
-(function(){
-  var url = param('img');
-  if(!url){ set('im','no ?img= given','wait'); return; }
+function testImage(url){
+  if(!url){ set('im','no image published','wait'); return; }
   var i = $('i');
   i.onload  = function(){ set('im','OK '+i.naturalWidth+'x'+i.naturalHeight,'ok'); };
-  i.onerror = function(){ set('im','FAILED','bad'); };
+  i.onerror = function(){ set('im','FAILED to load','bad'); };
   i.src = url;
-})();
+}
 
 })();
 </script>
