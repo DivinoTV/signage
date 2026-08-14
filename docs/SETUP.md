@@ -94,51 +94,36 @@ siapa pun yang melihat source. Jadi mengirimkannya bukan kebocoran.
 
 ---
 
-## Bagian 3 — GitHub Pages
+## Bagian 3 — GitHub Pages ✅ SELESAI
 
-Ini yang menyajikan halaman ke TV. Juga gratis.
+Dikerjakan 2026-08-13. Bagian ini tinggal catatan; tidak ada yang perlu Anda ulangi.
 
-**3.1** Buat akun di [github.com](https://github.com) kalau belum punya.
+| | |
+|---|---|
+| Repo | [DivinoTV/signage](https://github.com/DivinoTV/signage) — **public** |
+| Alamat live | `https://divinotv.github.io/signage/` |
+| Admin panel | `https://divinotv.github.io/signage/admin/` |
+| Sumber Pages | branch `main`, folder `/` (root) |
 
-**3.2** Buat repository baru:
-- Nama: `signage`
-- **Public** — GitHub Pages tier gratis mewajibkan public.
-- Jangan centang opsi tambahan apa pun (README, .gitignore, license). Repo harus kosong.
+Repo harus public karena organisasi DivinoTV pakai plan gratis, dan GitHub Pages
+mewajibkan public di plan itu. Isinya aman untuk publik: kode, artwork, dan kunci
+publishable — yang memang dirancang publik (brief C6). Yang **tidak** ikut terbit,
+dikecualikan lewat `.gitignore`: `API.md`, `PROJECT_BRIEF_v2.1.md`, dan `.claude/`.
 
-> Repo ini akan bisa dibaca siapa saja, dan itu tidak masalah selama isinya cuma ini:
-> kode, artwork, dan anon key. Yang tidak boleh masuk: `service_role` key, rate card,
-> dan data tamu.
+### Cara mengirim perubahan berikutnya
 
-**3.3** Unggah isi folder ini. Di Terminal, jalankan satu per satu:
-
-```bash
-cd "/Users/Marketing/Documents/Claude/Projects/Social Media Marketing/Hotel TV Display Project"
-```
-
-```bash
-git init -b main && git add -A && git commit -m "Initial signage system"
-```
-
-Ganti `USERNAME` dengan username GitHub Anda:
+Kalau nanti ada file yang diubah (artwork fallback baru, dokumen, atau `index.html`),
+jalankan tiga perintah ini dari folder project:
 
 ```bash
-git remote add origin https://github.com/USERNAME/signage.git && git push -u origin main
+cd "/Users/Marketing/Documents/Claude/Projects/Social Media Marketing/Hotel TV Display Project" && git add -A && git commit -m "jelaskan perubahannya di sini" && git push
 ```
 
-Kalau diminta login, GitHub akan membuka browser. Ikuti saja.
+Pages membangun ulang otomatis dalam ~30 detik.
 
-**3.4** Nyalakan Pages. Di halaman repo → **Settings** → **Pages** → bagian Source pilih
-**Deploy from a branch**, branch **main**, folder **/ (root)**, lalu Save.
-
-Tunggu 1–2 menit. Alamat Anda jadi:
-
-```
-https://USERNAME.github.io/signage/
-```
-
-**3.5** Buka alamat itu di laptop dulu. Yang benar: layar gelap dengan tulisan
-`NO ?property= IN URL`. Itu **bukan** error — itu memang perilaku yang dirancang saat
-properti belum disebut di URL. Artinya hosting sudah jalan.
+> Kalau yang Anda ubah adalah `index.html`, naikkan juga angka di `version.json` **dan**
+> `CFG.version` di dalam `index.html` pada commit yang sama. Itu yang memaksa TV yang
+> sedang menyala memuat ulang halaman, tanpa menunggu dibuka lagi besok pagi.
 
 ---
 

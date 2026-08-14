@@ -62,13 +62,13 @@ utuh tanpa zoom. Catat pengaturannya di bawah.
 URL-nya berbentuk:
 
 ```
-https://USERNAME.github.io/signage/?property=PROPERTI&type=KATEGORI
+https://divinotv.github.io/signage/?property=PROPERTI&type=KATEGORI
 ```
 
 Contoh untuk kamar Deluxe di Divino Gili Air:
 
 ```
-https://USERNAME.github.io/signage/?property=divino-gili-air&type=deluxe
+https://divinotv.github.io/signage/?property=divino-gili-air&type=deluxe
 ```
 
 Slug properti yang berlaku:

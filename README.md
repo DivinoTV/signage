@@ -53,7 +53,7 @@ Not built yet, and why: see the bottom of this file.
 ## TV URL
 
 ```
-https://<user>.github.io/<repo>/?property=divino-gili-air&type=deluxe
+https://divinotv.github.io/signage/?property=divino-gili-air&type=deluxe
 ```
 
 Property slugs are `divino-caldera`, `divino-gili-air`, `kanzen-gili-air`, `oniro`.

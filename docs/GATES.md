@@ -15,7 +15,7 @@ not an emulator.
 4. On the TV: Home → Internet → open
 
    ```
-   https://<user>.github.io/<repo>/gate-test.html?video=<VIDEO_URL>&img=<IMG_URL>
+   https://divinotv.github.io/signage/gate-test.html?video=<VIDEO_URL>&img=<IMG_URL>
    ```
 
 5. Photograph the screen. Leave it running overnight. Photograph it again next morning.
