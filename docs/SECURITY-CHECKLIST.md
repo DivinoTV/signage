@@ -84,3 +84,4 @@ Re-run quarterly — policies drift as features are added (§5.5).
 | Date | Run by | Result |
 |---|---|---|
 | 2026-08-13 | Samuel | 7 pass, 0 fail, 2 SKIP (no slides published yet). Public signup confirmed off (422). Re-run after the first slide. |
+| 2026-08-13 | Samuel | **ALL 9 PASS** with `--include-destructive`, against 3 published slides. UPDATE and DELETE both zero rows affected — the write probes finally had a real row to attack and were refused. Clean sheet. Next due 2026-11-13. |
