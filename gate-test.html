@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920,initial-scale=1">
+<title>Signage gate test</title>
+<style>
+  html,body{margin:0;background:#0b0b0d;color:#e8e8ea;font:28px/1.5 monospace;cursor:none}
+  #wrap{padding:54px 96px}           /* 5% safe area — if you can't read an edge, that's overscan */
+  h1{font-size:44px;margin:0 0 24px}
+  .row{margin:10px 0}
+  .k{display:inline-block;min-width:340px;color:#8a8a95}
+  .ok{color:#4ade80}.bad{color:#f87171}.wait{color:#fbbf24}
+  #media{position:fixed;right:96px;bottom:54px;width:480px}
+  video,img{width:480px;height:270px;object-fit:cover;background:#222;display:block;margin-top:12px}
+  #ua{font-size:20px;color:#8a8a95;word-break:break-all;margin-top:24px;max-width:1100px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>GATE TEST — photograph this whole screen</h1>
+  <div class="row"><span class="k">uptime (V6 sleep test)</span><b id="up">0:00:00</b></div>
+  <div class="row"><span class="k">N1 supabase https</span><b id="n1" class="wait">...</b></div>
+  <div class="row"><span class="k">N1 rows returned</span><b id="n1r">-</b></div>
+  <div class="row"><span class="k">N2 websocket (wss)</span><b id="n2" class="wait">...</b></div>
+  <div class="row"><span class="k">N2 held / drops</span><b id="n2h">0:00 / 0</b></div>
+  <div class="row"><span class="k">G4 codec: High</span><b id="c1">-</b></div>
+  <div class="row"><span class="k">G4 codec: Main</span><b id="c2">-</b></div>
+  <div class="row"><span class="k">G4 codec: Baseline</span><b id="c3">-</b></div>
+  <div class="row"><span class="k">G1 video autoplay</span><b id="g1" class="wait">...</b></div>
+  <div class="row"><span class="k">G2 loops seen</span><b id="g2">0</b></div>
+  <div class="row"><span class="k">image loads</span><b id="im" class="wait">...</b></div>
+  <div id="ua">UA: <span id="uav"></span></div>
+</div>
+<div id="media">
+  <video id="v" autoplay muted loop playsinline></video>
+  <img id="i" alt="">
+</div>
+
+<script>
+/* ES5 only. No framework, no CDN. Self-contained on purpose.
+   Usage:  gate-test.html?video=<url to the H.264 test file>&img=<url to a still>
+   Leave it running overnight, then compare day-1 vs day-2 egress in the Supabase
+   dashboard for G3. */
+(function(){
+'use strict';
+
+/* ---- CONFIG: fill these two in ---- */
+var SUPABASE_URL = 'https://lbtgbxexejvjqhmvpygm.supabase.co';
+var SUPABASE_ANON = 'sb_publishable_KnH-IbL0AMBVtIpPw-MfLA_qbUcEPzt';
+/* ----------------------------------- */
+
+function $(id){ return document.getElementById(id); }
+function set(id, txt, cls){ var e=$(id); e.innerHTML=txt; e.className=cls||''; }
+function param(n){
+  var m = new RegExp('[?&]'+n+'=([^&]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function hms(s){
+  var h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=Math.floor(s%60);
+  return h+':'+(m<10?'0':'')+m+':'+(x<10?'0':'')+x;
+}
+
+/* V3 — the whole point of this line is the photograph */
+$('uav').innerHTML = navigator.userAgent;
+
+/* V6 — if the TV sleeps, this stops climbing */
+var t0 = new Date().getTime();
+setInterval(function(){ set('up', hms((new Date().getTime()-t0)/1000)); }, 1000);
+
+/* G4 — free signal, no file needed. 'probably' > 'maybe' > '' */
+var v = $('v');
+function can(codec){ try{ return v.canPlayType('video/mp4; codecs="'+codec+'"') || 'no'; }catch(e){ return 'err'; } }
+function verdict(id, r){ set(id, r, r==='no'||r==='err' ? 'bad' : (r==='probably'?'ok':'wait')); }
+verdict('c1', can('avc1.640028'));   /* High   */
+verdict('c2', can('avc1.4D401E'));   /* Main   */
+verdict('c3', can('avc1.42E01E'));   /* Baseline */
+
+/* N1 + M0 — plain XHR against PostgREST, exactly the TV app's critical path */
+(function(){
+  var x = new XMLHttpRequest();
+  x.open('GET', SUPABASE_URL+'/rest/v1/assets?select=id&limit=5', true);
+  x.setRequestHeader('apikey', SUPABASE_ANON);
+  x.setRequestHeader('Authorization', 'Bearer '+SUPABASE_ANON);
+  x.onreadystatechange = function(){
+    if(x.readyState!==4) return;
+    if(x.status>=200 && x.status<300){
+      set('n1','REACHABLE ('+x.status+')','ok');
+      var n='?'; try{ n=JSON.parse(x.responseText).length; }catch(e){}
+      set('n1r', String(n));
+    } else {
+      set('n1','BLOCKED (status '+x.status+')','bad');
+    }
+  };
+  x.onerror = function(){ set('n1','BLOCKED (network)','bad'); };
+  x.send();
+})();
+
+/* N2 — raw wss to Realtime with a Phoenix heartbeat. No library needed;
+   this tests the network, which is the only thing N2 is about.
+   Server closes an idle socket without heartbeats, so send one every 25s. */
+(function(){
+  if(!window.WebSocket){ set('n2','NO WebSocket API','bad'); return; }
+  var opened=0, drops=0, since=0, ref=0, ws=null, hb=null;
+
+  function connect(){
+    var host = SUPABASE_URL.replace(/^https?:\/\//,'');
+    try {
+      ws = new WebSocket('wss://'+host+'/realtime/v1/websocket?apikey='+encodeURIComponent(SUPABASE_ANON)+'&vsn=1.0.0');
+    } catch(e){ set('n2','FAILED to open','bad'); return; }
+
+    ws.onopen = function(){
+      opened++; since = new Date().getTime();
+      set('n2','OPEN','ok');
+      hb = setInterval(function(){
+        try{ ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:String(++ref)})); }catch(e){}
+      }, 25000);
+    };
+    ws.onclose = function(){
+      if(hb){ clearInterval(hb); hb=null; }
+      if(opened){ drops++; }
+      set('n2','DROPPED — reconnecting','bad');
+      setTimeout(connect, 5000);
+    };
+    ws.onerror = function(){ set('n2','ERROR','bad'); };
+  }
+  connect();
+
+  setInterval(function(){
+    var held = since ? (new Date().getTime()-since)/1000 : 0;
+    $('n2h').innerHTML = hms(held)+' / '+drops+' drops';
+  }, 1000);
+})();
+
+/* G1 / G2 — leave it looping. A drop-out here is the gate failing, not a glitch. */
+(function(){
+  var url = param('video');
+  if(!url){ set('g1','no ?video= given','wait'); return; }
+  var loops = 0;
+  v.addEventListener('playing', function(){ set('g1','PLAYING','ok'); }, false);
+  v.addEventListener('error',   function(){
+    var c = (v.error && v.error.code) || '?';
+    set('g1','FAILED (error code '+c+')','bad');
+  }, false);
+  v.addEventListener('stalled', function(){ set('g1','STALLED','bad'); }, false);
+  /* loop fires seeked/timeupdate, not ended — count the wrap instead */
+  var last = 0;
+  v.addEventListener('timeupdate', function(){
+    if(v.currentTime < last - 0.5){ loops++; $('g2').innerHTML = String(loops); }
+    last = v.currentTime;
+  }, false);
+  v.src = url;
+  var p = v.play();
+  if(p && p['catch']) p['catch'](function(){ set('g1','AUTOPLAY BLOCKED','bad'); });
+  setTimeout(function(){ if($('g1').innerHTML==='...') set('g1','NO START after 20s','bad'); }, 20000);
+})();
+
+/* still image — proves plain media loads even if video is out of scope */
+(function(){
+  var url = param('img');
+  if(!url){ set('im','no ?img= given','wait'); return; }
+  var i = $('i');
+  i.onload  = function(){ set('im','OK '+i.naturalWidth+'x'+i.naturalHeight,'ok'); };
+  i.onerror = function(){ set('im','FAILED','bad'); };
+  i.src = url;
+})();
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920,initial-scale=1">
+<title>Signage</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0b0b0d}
+  body{cursor:none;color:#fff;font-family:Arial,Helvetica,sans-serif;
+       -webkit-user-select:none;-moz-user-select:none;user-select:none}
+  ::-webkit-scrollbar{width:0;height:0;display:none}
+  .layer{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;
+         background-position:50% 50%;background-repeat:no-repeat;background-size:cover;
+         -webkit-transform:scale(1);transform:scale(1)}
+  .layer.on{opacity:1}
+  #msg{position:absolute;top:50%;left:96px;right:96px;margin-top:-40px;text-align:center;
+       font-size:56px;line-height:1.3;opacity:.5;display:none}
+  #dbg{position:absolute;top:0;left:0;max-width:1600px;max-height:100%;overflow:hidden;
+       padding:24px;background:rgba(0,0,0,.82);color:#4ade80;
+       font:20px/1.45 monospace;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div id="a" class="layer"></div>
+<div id="b" class="layer"></div>
+<div id="msg"></div>
+<div id="dbg"></div>
+
+<script>
+/* Multi-Property TV Signage — TV app (brief v2.1 §3.2)
+   ES5 + XHR only. No framework, no build step, no CDN, no library on this path.
+   URL: index.html?property=<slug>&type=<zone-slug>[&debug=1]
+
+   NOT IMPLEMENTED YET, on purpose:
+     - video playback  -> M8, gated on G1/G2/G4. Video rows are skipped and logged.
+     - Realtime        -> M6, gated on N2. Polling below is the complete fallback.
+   Both are additive. Nothing here changes when they land. */
+(function(){
+'use strict';
+
+/* ================= CONFIG ================= */
+/* Base project URL only — no trailing path. This code appends /rest/v1/... itself.
+   Publishable key, not the legacy anon JWT: both work today (verified against REST and
+   Auth on 2026-08-13), but Supabase is phasing the legacy JWT keys out and a key that
+   stops working blanks every TV at once. Safe to be public by design (C6).
+   Legacy anon JWT, if ever needed as a fallback, expires 2036-08-11. */
+var CFG = {
+  url:     'https://lbtgbxexejvjqhmvpygm.supabase.co',
+  key:     'sb_publishable_KnH-IbL0AMBVtIpPw-MfLA_qbUcEPzt',
+  version: '1'                       /* bump together with version.json, same commit */
+};
+/* ========================================== */
+
+var POLL_MS      = 5 * 60 * 1000;    /* §2.8 disconnected value — Realtime does not exist yet */
+var RETRY_MS     = 60 * 1000;        /* while sitting on the fallback slide */
+var FETCH_MS     = 8000;             /* §3.2.1 boot timeout */
+var FADE_MS      = 1000;             /* §2.4.5 */
+var ZOOM         = 1.06;             /* §2.4.4 */
+var MAX_FAILS    = 3;                /* §3.2.3 — drop a slide for the session */
+var LOG_MAX      = 100;              /* §3.2.5 ring buffer */
+var SLUG         = /^[a-z0-9-]{1,32}$/;
+var FALLBACK     = 'fallback/offline.jpg';        /* shared, optional */
+var FALLBACK_FMT = 'fallback/offline-%.jpg';      /* per-property, tried first */
+
+var layers   = [document.getElementById('a'), document.getElementById('b')];
+var msgEl    = document.getElementById('msg');
+var dbgEl    = document.getElementById('dbg');
+var front    = 0;
+var idx      = -1;
+var playlist = [];
+var fails    = {};                   /* media_url -> consecutive failures */
+var log      = [];
+var errors   = 0;
+var lastOk   = 'never';
+var timer    = null;
+var booted   = false;
+
+/* ---------- helpers ---------- */
+function param(n){
+  var m = new RegExp('[?&]' + n + '=([^&]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : null;
+}
+function slug(v){ return (v && SLUG.test(v)) ? v : null; }
+function sty(e, k, v){
+  e.style[k] = v;
+  e.style['Webkit' + k.charAt(0).toUpperCase() + k.slice(1)] = v;
+}
+function reflow(e){ return e.offsetHeight; }
+function two(n){ return (n < 10 ? '0' : '') + n; }
+function say(m){
+  var d = new Date();
+  log.push(two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()) + '  ' + m);
+  if (log.length > LOG_MAX) log.shift();
+  if (dbgOn) paintDbg();
+}
+
+/* §2.7 / §3.2.6 — shape validation, not membership. A valid-shaped slug that does
+   not exist simply matches no rows and falls through to NULL-zone content, which is
+   the desired behaviour. This is what makes both values safe to interpolate below. */
+var property = slug(param('property'));
+var zone     = slug(param('type'));
+var dbgOn    = param('debug') === '1';
+var CACHE_KEY = 'signage:' + property + ':' + (zone || '*');
+
+var motion = true;
+try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) motion = false; }
+catch (e) {}
+
+/* ---------- network ---------- */
+function get(url, auth, cb){                       /* cb(err, text) */
+  var x = new XMLHttpRequest(), done = false;
+  function finish(err, txt){ if (!done){ done = true; cb(err, txt); } }
+  try { x.open('GET', url, true); } catch (e){ return finish(e, null); }
+  if (auth){ x.setRequestHeader('apikey', CFG.key); x.setRequestHeader('Authorization', 'Bearer ' + CFG.key); }
+  x.onreadystatechange = function(){
+    if (x.readyState !== 4) return;
+    if (x.status >= 200 && x.status < 300) finish(null, x.responseText);
+    else finish(new Error('HTTP ' + x.status), null);
+  };
+  x.onerror = function(){ finish(new Error('network'), null); };
+  /* old engines ignore x.timeout, so drive it from a timer instead */
+  setTimeout(function(){
+    if (!done){ try { x.abort(); } catch (e){} finish(new Error('timeout'), null); }
+  }, FETCH_MS);
+  try { x.send(); } catch (e){ finish(e, null); }
+}
+
+function playlistUrl(){
+  var f = zone ? 'zone.is.null,zone.eq.' + zone : 'zone.is.null';
+  return CFG.url + '/rest/v1/assets'
+    + '?select=media_url,media_type,duration_seconds,starts_at,ends_at,meta'
+    + '&property=eq.' + property
+    + '&is_active=eq.true'
+    + '&or=(' + f + ')'
+    + '&order=sort_order.asc';
+}
+
+/* ---------- playlist ---------- */
+/* §3.2.2 — validate before adopting. Anything unusable keeps the current playlist. */
+function usable(rows){
+  if (!rows || typeof rows.length !== 'number') return null;
+  var now = new Date().getTime(), out = [], skippedVideo = 0, i, r, t;
+  for (i = 0; i < rows.length; i++){
+    r = rows[i];
+    if (!r || typeof r.media_url !== 'string' || !r.media_url) continue;
+    if (r.media_type !== 'image' && r.media_type !== 'video') continue;
+    if (r.media_type === 'video'){ skippedVideo++; continue; }   /* M8 not built yet */
+    /* schedule window. A bad or unparseable bound is ignored rather than hiding the slide.
+       ponytail: trusts the TV clock; if drift is ever a real problem the fix is filtering
+       server-side with a now() expression, not a clock sync on the TV. */
+    if (r.starts_at){ t = new Date(r.starts_at).getTime(); if (!isNaN(t) && now < t) continue; }
+    if (r.ends_at)  { t = new Date(r.ends_at).getTime();   if (!isNaN(t) && now > t) continue; }
+    out.push(r);
+  }
+  if (skippedVideo) say('skipped ' + skippedVideo + ' video row(s) — video not implemented');
+  return out.length ? out : null;
+}
+
+function fetchPlaylist(){
+  if (!property) return;
+  get(playlistUrl(), true, function(err, txt){
+    if (err){ errors++; say('fetch failed: ' + err.message); if (!booted) useCache(); return; }
+    var rows = null;
+    try { rows = JSON.parse(txt); } catch (e){ errors++; say('reject: bad JSON'); if (!booted) useCache(); return; }
+    var ok = usable(rows);
+    if (!ok){ errors++; say('reject: no usable rows (' + (rows.length || 0) + ' returned)'); if (!booted) useCache(); return; }
+
+    lastOk = new Date().toString().slice(4, 24);
+    try { localStorage.setItem(CACHE_KEY, txt); } catch (e){ say('cache write failed'); }
+    adopt(ok, 'network');
+  });
+}
+
+function useCache(){
+  var txt = null;
+  try { txt = localStorage.getItem(CACHE_KEY); } catch (e){}
+  if (!txt){ say('no cached playlist'); return fallback(); }
+  var ok = null;
+  try { ok = usable(JSON.parse(txt)); } catch (e){}
+  if (!ok){ say('cached playlist unusable'); return fallback(); }
+  adopt(ok, 'cache');
+}
+
+/* §3.2.1 — never blank because new data failed. A running loop keeps running; a
+   replacement playlist takes effect from the next slide, not mid-slide. */
+function adopt(rows, src){
+  playlist = rows;
+  fails = {};
+  if (idx >= playlist.length) idx = playlist.length - 1;
+  say('playlist ' + rows.length + ' slide(s) from ' + src);
+  if (!booted){ booted = true; advance(); }
+}
+
+/* ---------- rendering ---------- */
+/* Loads the URL to prove it is fetchable. Already-cached bytes resolve instantly,
+   which is what makes the n+1 preload below effectively free. Deliberately NOT
+   memoised on success: an evicted cache entry on a cold offline boot must still
+   register as a failure so the slide gets skipped.
+   MAX_FAILS counts CONSECUTIVE failures, and success resets the counter. Total-count
+   would blank the screen on F11: a 30-minute outage fails every slide 3 times, and
+   the whole playlist would stay dropped after the network came back. */
+function probe(url, cb){
+  if ((fails[url] || 0) >= MAX_FAILS) return cb(false);
+  var img = new Image(), done = false;
+  img.onload  = function(){ if (!done){ done = true; fails[url] = 0; cb(true); } };
+  img.onerror = function(){
+    if (done) return;
+    done = true;
+    fails[url] = (fails[url] || 0) + 1;
+    errors++;
+    say('media failed (' + fails[url] + '/' + MAX_FAILS + ') ' + url);
+    cb(false);
+  };
+  img.src = url;
+}
+
+function paint(url, animate){
+  var back = layers[1 - front], fwd = layers[front];
+
+  sty(back, 'transition', 'none');
+  sty(back, 'transform', 'scale(1)');
+  sty(back, 'transformOrigin', (idx % 2) ? '100% 100%' : '0% 0%');   /* alternating drift */
+  back.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+  reflow(back);
+
+  var trans = 'opacity ' + FADE_MS + 'ms linear';
+  if (animate && motion) trans += ', transform ' + animate + 'ms ease-out';
+  sty(back, 'transition', trans);
+  if (animate && motion) sty(back, 'transform', 'scale(' + ZOOM + ')');
+
+  back.className = 'layer on';
+  fwd.className  = 'layer';
+  front = 1 - front;
+}
+
+function advance(){
+  if (timer){ clearTimeout(timer); timer = null; }
+  if (!playlist.length) return fallback();
+
+  var tried = 0;
+  (function attempt(){
+    if (++tried > playlist.length){ say('every slide unloadable'); return fallback(); }
+    idx = (idx + 1) % playlist.length;
+    var item = playlist[idx];
+    probe(item.media_url, function(ok){
+      if (!ok) return attempt();
+      var ms = Math.max(1, item.duration_seconds || 8) * 1000;
+      msgEl.style.display = 'none';
+      paint(item.media_url, ms);
+      timer = setTimeout(advance, ms);
+      /* §3.2.3 — warm n+1 while n is on screen */
+      var j = (idx + 1) % playlist.length;
+      if (j !== idx) probe(playlist[j].media_url, function(){});
+    });
+  })();
+}
+
+/* §3.2.1 last resort, in three tiers: this property's own still, else the shared
+   still, else dark + property name. All in-repo — they are what shows when Supabase
+   is unreachable, so they cannot live in Supabase. A property with no artwork yet
+   just falls through, so files can be added one at a time with no code change. */
+function fallback(){
+  if (timer){ clearTimeout(timer); timer = null; }
+  var tries = property ? [FALLBACK_FMT.replace('%', property), FALLBACK] : [FALLBACK];
+
+  (function attempt(i){
+    if (i >= tries.length){
+      layers[0].className = 'layer'; layers[1].className = 'layer';
+      msgEl.innerHTML = property ? property.replace(/-/g, ' ').toUpperCase()
+                                 : 'NO ?property= IN URL';
+      msgEl.style.display = 'block';
+      return retryLater();
+    }
+    probe(tries[i], function(ok){
+      if (!ok) return attempt(i + 1);
+      msgEl.style.display = 'none';
+      paint(tries[i], 0);
+      retryLater();
+    });
+  })(0);
+}
+
+function retryLater(){
+  timer = setTimeout(function(){ booted = false; fetchPlaylist(); }, RETRY_MS);
+}
+
+/* ---------- poll + version (§2.8, §2.10) ---------- */
+function checkVersion(){
+  get('version.json?t=' + new Date().getTime(), false, function(err, txt){
+    if (err) return;
+    var v = null;
+    try { v = JSON.parse(txt).version; } catch (e){ return; }
+    if (v && String(v) !== String(CFG.version)){
+      say('version ' + v + ' != ' + CFG.version + ' — reloading');
+      location.reload();
+    }
+  });
+}
+
+function poll(){
+  setTimeout(function(){
+    fetchPlaylist();
+    checkVersion();
+    poll();
+  }, POLL_MS);
+}
+
+/* ---------- diagnostics (§3.2.7) ---------- */
+function paintDbg(){
+  var cur = (idx >= 0 && playlist[idx]) ? playlist[idx].media_url : '-';
+  dbgEl.innerHTML =
+    'property   ' + property + '\n' +
+    'zone       ' + (zone || '(null — shared only)') + '\n' +
+    'app ver    ' + CFG.version + '\n' +
+    'playlist   ' + playlist.length + ' slide(s)\n' +
+    'slide      ' + (idx + 1) + '  ' + cur + '\n' +
+    'last fetch ' + lastOk + '\n' +
+    'realtime   not implemented (M6, gated on N2)\n' +
+    'poll       ' + (POLL_MS / 60000) + ' min\n' +
+    'errors     ' + errors + '\n' +
+    'motion     ' + (motion ? 'on' : 'reduced') + '\n' +
+    'UA         ' + navigator.userAgent + '\n\n' +
+    log.join('\n');
+}
+
+/* ---------- boot ---------- */
+if (dbgOn){ dbgEl.style.display = 'block'; setInterval(paintDbg, 1000); }
+say('boot v' + CFG.version);
+
+if (!property){
+  say('no valid ?property= — nothing sensible to show');
+  fallback();
+} else {
+  fetchPlaylist();
+  poll();
+}
+
+})();
+</script>
+</body>
+</html>

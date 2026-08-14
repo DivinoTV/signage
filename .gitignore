@@ -1,0 +1,13 @@
+.DS_Store
+
+# Kredensial yang ditempel untuk dibaca Claude — bukan artefak project.
+# Kunci publishable-nya sendiri memang publik dan tetap ikut di dalam file HTML
+# (brief C6); file ini dikecualikan supaya rapi, bukan supaya rahasia.
+API.md
+
+# Dokumen perencanaan internal. Tetap ada di laptop, tidak diterbitkan.
+PROJECT_BRIEF_v2.1.md
+
+# Konfigurasi Claude Code — bukan bagian dari project, dan settings.local.json
+# memuat path absolut yang membocorkan nama user laptop.
+.claude/
