@@ -157,23 +157,53 @@ verdict('c3', can('avc1.42E01E'));   /* Baseline */
   }, 1000);
 })();
 
-/* G1 / G2 — leave it looping. A drop-out here is the gate failing, not a glitch. */
+/* G1 / G2 — bounded on purpose. See the circuit breaker below.
+
+   Gate run 1 left this page looping overnight and burned 49.96 GB of a 5 GB monthly
+   allowance in a single night: this TV re-fetches the whole file over range requests
+   on every loop instead of revalidating, and the download kept failing partway
+   (media error 2) and restarting. 1,572 full downloads of a 32.5 MB file.
+
+   A diagnostic tool that is *designed* to be left running unattended must never be
+   able to do that. G1 and G2 need a handful of clean loops, not a whole night. */
+var MAX_LOOPS  = 20;
+var MAX_ERRORS = 3;
+
 function testVideo(url){
   if(!url){ set('g1','no video published','wait'); return; }
-  var loops = 0;
-  v.addEventListener('playing', function(){ set('g1','PLAYING','ok'); }, false);
-  v.addEventListener('error',   function(){
+  var loops = 0, errors = 0, stopped = false;
+
+  function stop(why, cls){
+    if(stopped) return;
+    stopped = true;
+    try { v.removeAttribute('loop'); v.pause(); v.removeAttribute('src'); v.load(); } catch(e){}
+    set('g1', why, cls || 'bad');
+    $('g2').innerHTML = String(loops) + ' (stopped)';
+  }
+
+  v.addEventListener('playing', function(){ if(!stopped) set('g1','PLAYING','ok'); }, false);
+  v.addEventListener('error', function(){
     var c = (v.error && v.error.code) || '?';
-    /* 4 = MEDIA_ERR_SRC_NOT_SUPPORTED — the file or codec, not the TV's autoplay policy */
-    set('g1','SOURCE FAILED (media error '+c+')','bad');
+    /* 2 = MEDIA_ERR_NETWORK (download died partway), 4 = SRC_NOT_SUPPORTED (file/codec) */
+    if(++errors >= MAX_ERRORS){
+      stop('SOURCE FAILED (media error '+c+') — stopped after '+errors+' tries');
+      return;
+    }
+    set('g1','SOURCE FAILED (media error '+c+'), retry '+errors+'/'+MAX_ERRORS,'bad');
   }, false);
-  v.addEventListener('stalled', function(){ set('g1','STALLED','bad'); }, false);
+  v.addEventListener('stalled', function(){ if(!stopped) set('g1','STALLED','bad'); }, false);
+
   /* loop fires seeked/timeupdate, not ended — count the wrap instead */
   var last = 0;
   v.addEventListener('timeupdate', function(){
-    if(v.currentTime < last - 0.5){ loops++; $('g2').innerHTML = String(loops); }
+    if(v.currentTime < last - 0.5){
+      loops++;
+      $('g2').innerHTML = String(loops);
+      if(loops >= MAX_LOOPS) stop('PLAYED '+loops+' clean loops — stopped to protect egress','ok');
+    }
     last = v.currentTime;
   }, false);
+
   v.src = url;
   var p = v.play();
   if(p && p['catch']) p['catch'](function(e){
@@ -182,11 +212,16 @@ function testVideo(url){
        file or codec is wrong (fix the file, the TV is fine). Reporting both as
        "AUTOPLAY BLOCKED" sent us chasing the wrong gate once already. */
     var n = (e && e.name) || 'unknown';
-    if(n === 'NotAllowedError')      set('g1','AUTOPLAY BLOCKED by the TV','bad');
-    else if(n === 'NotSupportedError') set('g1','SOURCE NOT SUPPORTED — check the file','bad');
-    else                              set('g1','play() rejected: '+n,'bad');
+    if(n === 'NotAllowedError')        stop('AUTOPLAY BLOCKED by the TV');
+    else if(n === 'NotSupportedError') stop('SOURCE NOT SUPPORTED — check the file');
+    else                               stop('play() rejected: '+n);
   });
-  setTimeout(function(){ if($('g1').innerHTML==='...') set('g1','NO START after 20s','bad'); }, 20000);
+  setTimeout(function(){ if($('g1').innerHTML==='...') stop('NO START after 20s'); }, 20000);
+
+  /* Hard ceiling regardless of what the events do or fail to do. Five minutes is far
+     more than G1/G2 need, and it bounds the worst case if a failure mode shows up that
+     fires neither `error` nor `timeupdate`. */
+  setTimeout(function(){ if(!stopped) stop('time limit reached after 5 min — stopped to protect egress','wait'); }, 300000);
 }
 
 /* still image — proves plain media loads even if video is out of scope */

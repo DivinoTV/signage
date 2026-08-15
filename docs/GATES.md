@@ -76,6 +76,71 @@ video itself** — nothing to type — and a rejected `play()` reports `err.name
 **G1 and G2 remain genuinely unknown.** No video has been published yet, so there is still
 nothing to autoplay.
 
+---
+
+## Run 2 — 2026-08-14, overnight, same room
+
+| ID | Gate | Result |
+|---|---|---|
+| **V6** | Sleep settings | ☑ **PASS** — uptime **13:52:50**. The TV never slept, never blanked. |
+| **N2** | WebSocket held | ☑ **PASS** — held **7:11:48**, **2 drops** across ~14 hours. The bar was 30 minutes idle. **Realtime is viable — M6 is unblocked.** |
+| **N1** | Supabase reachable | ☑ **PASS** — `REACHABLE (200)`, 4 rows |
+| **G4** | Codec | ☑ **PASS** — High, Main, Baseline all `probably` |
+| image | Loads from Storage | ☑ **OK 1920x1080** — confirms run 1's `FAILED` was the hand-typed URL, not the TV |
+| **G3** | Cache persistence | ✗ **FAIL for video, PASS for images** — see below |
+| **G1** | Video autoplay | ✗ **FAIL** — `SOURCE FAILED (media error 2)` = `MEDIA_ERR_NETWORK`, the download died partway and restarted, 734 times |
+| **G2** | Loop transition | ✗ not reached — no clean playback to judge |
+
+### G3 — measured, and it cost 45 GB of overage
+
+**49.96 GB of cached egress in one night, against a 5 GB monthly allowance.** One TV.
+
+The stored metadata was correct on every file — `cacheControl = max-age=31536000`, exactly
+what the admin panel sets. Supabase overrides it on the response:
+
+```
+cache-control: no-cache        cf-cache-status: REVALIDATED
+```
+
+`no-cache` means "revalidate before use", not "do not store". Measured against the real
+objects:
+
+| Request | Result |
+|---|---|
+| Image, `If-None-Match` | **304, 0 bytes** |
+| Video, `If-None-Match` | **304, 0 bytes** |
+| Video, `Range:` **with** etag | **304, 0 bytes** |
+| Video, `Range:` **without** etag | **206, full transfer** |
+
+So revalidation is cheap and the server supports it. **This TV's media element does not
+send the etag on its range requests** — every loop re-fetched the whole 32.5 MB file.
+49.96 GB ÷ 32.5 MB = **1,572 full downloads in 14 hours**, one roughly every 32 seconds.
+
+Two compounding causes, both fixable:
+
+1. **The file was 32.5 MB** — over the 12–25 MB target and far above the 6 Mbps starting
+   bitrate in §2.9. On island internet the download could not finish before the element
+   gave up, so it restarted, forever.
+2. **No browser-side media caching on this panel.** This is not specific to `loop`: the TV
+   app rotates a 4-slide playlist every 40 seconds, so a video would be re-fetched about
+   2,160 times a day per TV regardless.
+
+**Conclusion: video cannot be served from Supabase Storage on this plan.** Not a bitrate
+problem alone — even a 5 MB clip re-fetched 2,160×/day/TV is 10.8 GB/day. This is exactly
+the situation §2.9 escalation path 2 exists for: move video to GitHub Releases, where
+`media_url` stays absolute (FP4) and the TV cannot tell the difference.
+
+**Images are fine.** They revalidate at 304/0 bytes and are unaffected.
+
+### What was fixed as a result
+
+- **`gate-test.html` now has a circuit breaker** — stops after 20 clean loops, 3 media
+  errors, or 5 minutes, whichever comes first. A tool designed to be left running
+  unattended must not be able to spend a month's egress in a night.
+- **`index.html` memoises a successful probe for one poll cycle.** Re-probing on every
+  slide change was 17,280 conditional requests per TV per day; at 22 TVs the 304 response
+  headers alone were 3.2 GB/month against a 5 GB cap. Now 0.2 GB/month.
+
 ## Still open after run 1
 
 | What | How |

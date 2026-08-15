@@ -69,6 +69,7 @@ var front    = 0;
 var idx      = -1;
 var playlist = [];
 var fails    = {};                   /* media_url -> consecutive failures */
+var okAt     = {};                   /* media_url -> last successful probe, ms */
 var log      = [];
 var errors   = 0;
 var lastOk   = 'never';
@@ -186,6 +187,7 @@ function useCache(){
 function adopt(rows, src){
   playlist = rows;
   fails = {};
+  okAt  = {};
   if (idx >= playlist.length) idx = playlist.length - 1;
   say('playlist ' + rows.length + ' slide(s) from ' + src);
   if (!booted){ booted = true; advance(); }
@@ -193,16 +195,25 @@ function adopt(rows, src){
 
 /* ---------- rendering ---------- */
 /* Loads the URL to prove it is fetchable. Already-cached bytes resolve instantly,
-   which is what makes the n+1 preload below effectively free. Deliberately NOT
-   memoised on success: an evicted cache entry on a cold offline boot must still
-   register as a failure so the slide gets skipped.
+   which is what makes the n+1 preload below effectively free.
    MAX_FAILS counts CONSECUTIVE failures, and success resets the counter. Total-count
    would blank the screen on F11: a 30-minute outage fails every slide 3 times, and
-   the whole playlist would stay dropped after the network came back. */
+   the whole playlist would stay dropped after the network came back.
+
+   Success is memoised for one poll cycle. Supabase serves media as no-cache, so
+   every un-memoised probe is a conditional request — cheap individually (304, zero
+   body) but not free in aggregate: at 10-second slides that is 17,280 requests per TV
+   per day, and across 22 TVs the 304 response headers alone came to 3.2 GB/month
+   against a 5 GB cap. Verifying once per cycle costs 0.2 GB/month instead.
+   The memo is in-memory, so a cold boot still probes everything for real — which is
+   the case that actually needs it (cached rows pointing at media the browser no
+   longer holds). adopt() clears it whenever a new playlist lands. */
 function probe(url, cb){
   if ((fails[url] || 0) >= MAX_FAILS) return cb(false);
+  var now = new Date().getTime();
+  if (okAt[url] && (now - okAt[url]) < POLL_MS) return cb(true);
   var img = new Image(), done = false;
-  img.onload  = function(){ if (!done){ done = true; fails[url] = 0; cb(true); } };
+  img.onload  = function(){ if (!done){ done = true; fails[url] = 0; okAt[url] = now; cb(true); } };
   img.onerror = function(){
     if (done) return;
     done = true;
