@@ -13,8 +13,8 @@ Cetak, potong, taruh di meja front desk tiap properti.
 │   2.  Tekan  HOME                            │
 │   3.  Pilih  INTERNET                        │
 │   4.  Tunggu halaman muncul                  │
-│   5.  Tombol  ⛶ Fullscreen  muncul di        │
-│       kanan bawah — tekan  OK  sekali        │
+│   5.  Ikon  ⛶  muncul di sudut kanan        │
+│       bawah — tekan  OK  sekali              │
 │                                              │
 │   Selesai. Tinggalkan begitu saja.           │
 │                                              │

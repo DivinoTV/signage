@@ -96,7 +96,7 @@ Sources live in `assets-src/` and are not served. Export to
 | Piece | Blocked on |
 |---|---|
 | Video playback (M8) | External hosting. G4 passed, but G1/G3 failed: this panel re-fetches the whole file every loop — 49.96 GB in one night. Video rows are skipped and logged. See GATES.md. |
-| Motion polish (M7) | Needs 10 minutes observed on a real TV, not a desktop. |
+| Motion polish (M7) | Mostly retired: stills are static by the owner's decision 2026-08-17, so the per-frame transform that risked stutter is gone. Only the cross-fade is left to observe on a real TV. |
 | Samsung menu paths in `TV-SETUP.md` | Vary by model year — fill in from the first TV. |
 
 ## Decisions taken on the brief's open questions

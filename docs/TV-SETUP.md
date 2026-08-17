@@ -40,8 +40,9 @@ Biasanya ada di sekitar menu **Power and Energy Saving**, tapi lokasinya berpind
 model. Ketiganya harus mati. Kalau ada satu yang tidak bisa dimatikan, catat dan beri
 tahu Samuel — TV itu tidak cocok dipakai.
 
-- [ ] Mode gambar diset dan dikunci. **Matikan motion smoothing** kalau ada — fitur itu
-      membuat gerakan Ken Burns terlihat aneh.
+- [ ] Mode gambar diset dan dikunci. **Matikan motion smoothing** kalau ada — gambarnya
+      statis, jadi fitur itu tidak ada gunanya di sini dan hanya bisa merusak pergantian
+      slide.
 
 ---
 
@@ -98,7 +99,7 @@ ada, curigai salah ketik URL lebih dulu.
 ## 5. Uji
 
 - [ ] Slide tampil dan berganti sendiri
-- [ ] Tombol **⛶ Fullscreen** muncul di kanan bawah. Tekan **OK** — toolbar browser
+- [ ] Ikon **⛶** muncul di sudut kanan bawah. Tekan **OK** — toolbar browser
       Samsung hilang dan gambar mengisi penuh layar. Tombolnya lalu hilang sendiri.
 - [ ] Setelah tombolnya hilang, tekan tombol arah di remote — tombolnya harus muncul lagi.
       Ini yang dipakai staf kalau mereka terlambat menekannya.

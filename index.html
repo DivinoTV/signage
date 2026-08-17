@@ -6,27 +6,41 @@
 <title>Signage</title>
 <style>
   html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0b0b0d}
-  body{cursor:none;color:#fff;font-family:Arial,Helvetica,sans-serif;
+  body{color:#fff;font-family:Arial,Helvetica,sans-serif;
        -webkit-user-select:none;-moz-user-select:none;user-select:none}
+  /* The cursor hides after 5 s of stillness rather than always (owner, 2026-08-17):
+     the Fullscreen button has to be clicked, and you cannot aim a pointer you cannot see.
+     A TV with no pointer never fires mousemove, so it hides once and stays hidden — which
+     is where §2.4.6 wanted to end up anyway. The descendant selector is what stops the
+     button's own `cursor:pointer` from overriding it. */
+  body.nocursor, body.nocursor *{cursor:none}
   ::-webkit-scrollbar{width:0;height:0;display:none}
+  /* Cross-fade only, 1000 ms, opacity (§2.4.5). Stills are static — owner's decision
+     2026-08-17 replaces the Ken Burns zoom of §2.4.4 — so there is no transform here and
+     nothing for the JS to reset or time. */
   .layer{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;
          background-position:50% 50%;background-repeat:no-repeat;background-size:cover;
-         -webkit-transform:scale(1);transform:scale(1)}
+         -webkit-transition:opacity 1000ms linear;transition:opacity 1000ms linear}
   .layer.on{opacity:1}
   #msg{position:absolute;top:50%;left:96px;right:96px;margin-top:-40px;text-align:center;
        font-size:56px;line-height:1.3;opacity:.5;display:none}
   #dbg{position:absolute;top:0;left:0;max-width:1600px;max-height:100%;overflow:hidden;
        padding:24px;background:rgba(0,0,0,.82);color:#4ade80;
        font:20px/1.45 monospace;white-space:pre-wrap;display:none}
-  /* Operator control, inside the safe area. Deliberately large: it is pressed with a
-     remote from across the room. This is the one element allowed a focus style — §2.4.6
-     bans focus outlines for the guest-facing display, but a control navigated by remote
-     is unusable without one. */
-  #fs{position:absolute;right:96px;bottom:54px;display:none;
-      font:600 44px/1 Arial,Helvetica,sans-serif;color:#fff;cursor:pointer;
-      background:rgba(0,0,0,.72);border:3px solid rgba(255,255,255,.85);
-      border-radius:14px;padding:22px 38px}
-  #fs:focus{outline:none;border-color:#7fb0ff;background:rgba(16,38,78,.88)}
+  /* Operator control: bare icon, no plate (owner, 2026-08-17). Inside the safe area.
+     The layered shadow is doing the work a background box used to — it is what keeps a
+     white glyph legible over the cream artwork as well as over dark artwork, which is the
+     whole reason the plate existed. The padding stays as an invisible hit area.
+     This is the one element allowed a focus style: §2.4.6 bans focus outlines on the
+     guest-facing display, but a control aimed with a remote is unusable without one. */
+  #fs{position:absolute;right:80px;bottom:38px;display:none;
+      font:400 56px/1 Arial,Helvetica,sans-serif;color:#fff;cursor:pointer;
+      background:none;border:0;padding:16px;
+      -webkit-text-stroke:2px rgba(0,0,0,.7);
+      text-shadow:0 2px 9px rgba(0,0,0,.75)}
+  #fs:focus{outline:none;color:#e2ecff;
+      -webkit-text-stroke:2px rgba(0,0,0,.8);
+      text-shadow:0 2px 9px rgba(0,0,0,.8), 0 0 18px rgba(130,175,255,.95)}
 </style>
 </head>
 <body>
@@ -34,7 +48,7 @@
 <div id="b" class="layer"></div>
 <div id="msg"></div>
 <div id="dbg"></div>
-<button id="fs" type="button">&#9974;&nbsp; Fullscreen</button>
+<button id="fs" type="button" title="Fullscreen" aria-label="Fullscreen">&#9974;</button>
 
 <script>
 /* Multi-Property TV Signage — TV app (brief v2.1 §3.2)
@@ -63,7 +77,7 @@
 var CFG = {
   url:     'https://lbtgbxexejvjqhmvpygm.supabase.co',
   key:     'sb_publishable_KnH-IbL0AMBVtIpPw-MfLA_qbUcEPzt',
-  version: '3'                       /* bump together with version.json, same commit */
+  version: '4'                       /* bump together with version.json, same commit */
 };
 /* ========================================== */
 
@@ -75,8 +89,6 @@ var RT_HEARTBEAT = 25 * 1000;        /* Phoenix closes an idle socket without th
 var RT_DEBOUNCE  = 1500;             /* a reorder rewrites many rows — coalesce the burst */
 var RT_BACKOFF   = [2000, 5000, 15000, 30000, 60000];
 var FETCH_MS     = 8000;             /* §3.2.1 boot timeout */
-var FADE_MS      = 1000;             /* §2.4.5 */
-var ZOOM         = 1.06;             /* §2.4.4 */
 var MAX_FAILS    = 3;                /* §3.2.3 — drop a slide for the session */
 var LOG_MAX      = 100;              /* §3.2.5 ring buffer */
 var SLUG         = /^[a-z0-9-]{1,32}$/;
@@ -103,11 +115,6 @@ function param(n){
   return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : null;
 }
 function slug(v){ return (v && SLUG.test(v)) ? v : null; }
-function sty(e, k, v){
-  e.style[k] = v;
-  e.style['Webkit' + k.charAt(0).toUpperCase() + k.slice(1)] = v;
-}
-function reflow(e){ return e.offsetHeight; }
 function two(n){ return (n < 10 ? '0' : '') + n; }
 function say(m){
   var d = new Date();
@@ -123,10 +130,6 @@ var property = slug(param('property'));
 var zone     = slug(param('type'));
 var dbgOn    = param('debug') === '1';
 var CACHE_KEY = 'signage:' + property + ':' + (zone || '*');
-
-var motion = true;
-try { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) motion = false; }
-catch (e) {}
 
 /* ---------- network ---------- */
 function get(url, auth, cb){                       /* cb(err, text) */
@@ -246,20 +249,14 @@ function probe(url, cb){
   img.src = url;
 }
 
-function paint(url, animate){
+/* Stills are static — owner's decision 2026-08-17, replacing the Ken Burns zoom in §2.4.4.
+   The slide does not move; only the cross-fade between slides remains, and it lives
+   entirely in the CSS on `.layer`. That leaves nothing here to reset, reflow or time.
+   It also retires most of M7: the stutter risk §2.4.4 warned about was the per-frame
+   transform, and there is no longer a transform. */
+function paint(url){
   var back = layers[1 - front], fwd = layers[front];
-
-  sty(back, 'transition', 'none');
-  sty(back, 'transform', 'scale(1)');
-  sty(back, 'transformOrigin', (idx % 2) ? '100% 100%' : '0% 0%');   /* alternating drift */
   back.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
-  reflow(back);
-
-  var trans = 'opacity ' + FADE_MS + 'ms linear';
-  if (animate && motion) trans += ', transform ' + animate + 'ms ease-out';
-  sty(back, 'transition', trans);
-  if (animate && motion) sty(back, 'transform', 'scale(' + ZOOM + ')');
-
   back.className = 'layer on';
   fwd.className  = 'layer';
   front = 1 - front;
@@ -278,7 +275,7 @@ function advance(){
       if (!ok) return attempt();
       var ms = Math.max(1, item.duration_seconds || 8) * 1000;
       msgEl.style.display = 'none';
-      paint(item.media_url, ms);
+      paint(item.media_url);
       timer = setTimeout(advance, ms);
       /* §3.2.3 — warm n+1 while n is on screen */
       var j = (idx + 1) % playlist.length;
@@ -306,7 +303,7 @@ function fallback(){
     probe(tries[i], function(ok){
       if (!ok) return attempt(i + 1);
       msgEl.style.display = 'none';
-      paint(tries[i], 0);
+      paint(tries[i]);
       retryLater();
     });
   })(0);
@@ -505,7 +502,6 @@ function paintDbg(){
     'poll       ' + (pollMs() / 60000) + ' min' +
                     (rtState === 'subscribed' ? '' : '  (realtime not confirmed)') + '\n' +
     'errors     ' + errors + '\n' +
-    'motion     ' + (motion ? 'on' : 'reduced') + '\n' +
     'fullscreen ' + (!fsSupported() ? 'unsupported' : (fsActive() ? 'on' : 'off — press the button')) + '\n' +
     'UA         ' + navigator.userAgent + '\n\n' +
     log.join('\n');
@@ -529,6 +525,27 @@ function paintDbg(){
 var fsEl       = document.getElementById('fs');
 var FS_HINT_MS = 30 * 1000;
 var fsTimer    = null;
+
+/* Cursor: visible while the mouse is moving, gone 5 s after it stops (owner, 2026-08-17).
+   A TV with no pointer never fires mousemove, so it hides once at boot and stays hidden
+   for good — which is where §2.4.6 wanted to be.
+   Mouse movement also keeps the Fullscreen button up, deliberately: a mouse moving means
+   someone is present and reaching for it, and the point of showing the cursor at all is
+   to be able to aim at that button. On a TV neither ever re-triggers. */
+var CURSOR_MS  = 5 * 1000;
+var curTimer   = null;
+
+function cursorHide(){
+  if (curTimer){ clearTimeout(curTimer); curTimer = null; }
+  if (document.body.className.indexOf('nocursor') === -1){
+    document.body.className = (document.body.className + ' nocursor').replace(/^\s+/, '');
+  }
+}
+function cursorShow(){
+  document.body.className = document.body.className.replace(/\s*nocursor\b/g, '');
+  if (curTimer) clearTimeout(curTimer);
+  curTimer = setTimeout(cursorHide, CURSOR_MS);
+}
 
 function fsSupported(){
   var d = document.documentElement;
@@ -565,7 +582,10 @@ if (document.addEventListener){
   document.addEventListener('fullscreenchange', fsSync, false);
   document.addEventListener('webkitfullscreenchange', fsSync, false);
   document.addEventListener('keydown', function(){ fsShow(); }, false);
+  /* Moving a mouse also means someone is present and looking for the control. */
+  document.addEventListener('mousemove', function(){ cursorShow(); fsShow(); }, false);
 }
+cursorShow();   /* start visible, then hide 5 s later if nothing moves */
 
 /* ---------- boot ---------- */
 if (dbgOn){ dbgEl.style.display = 'block'; setInterval(paintDbg, 1000); }

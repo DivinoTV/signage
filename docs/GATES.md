@@ -224,7 +224,9 @@ N1 = blocked             →  STOP. Escalate to property IT for an allowlist.
 N2 = blocked/unstable    →  Realtime unavailable. Reconciliation polling only, 5 min.
                              A degradation, not a failure. Do NOT change stack.
 
-G1 or G2 = fail          →  Change playback, not the stack. Ken Burns on stills (§2.4.4).
+G1 or G2 = fail          →  Change playback, not the stack. Stills only — which is now the
+                             permanent choice regardless (owner, 2026-08-17: no Ken Burns,
+                             static slides with a cross-fade).
 
 G3 = fail                →  Reduce payload per zone, re-test. Still failing → §2.9 path 2.
 
