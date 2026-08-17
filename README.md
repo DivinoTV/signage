@@ -1,7 +1,8 @@
 # Multi-Property TV Signage
 
-Guest-room TV signage for Caldera, Gili Air, Divino Suites, Kanzen Santorini,
-Kanzen Gili Air and Oniro. Spec: `PROJECT_BRIEF_v2.1.md`.
+Guest-room TV signage for Divino Gili Air, Divino Caldera, Kanzen Gili Air and Oniro.
+Only Divino Gili Air is operating so far. Spec: `PROJECT_BRIEF_v2.1.md` (kept out of this
+repo — see `.gitignore`), with the corrections recorded below.
 
 Static files on GitHub Pages. No server. Supabase holds the data, the media and the auth.
 
