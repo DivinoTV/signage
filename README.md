@@ -16,7 +16,7 @@ Static files on GitHub Pages. No server. Supabase holds the data, the media and 
 | `db/schema.sql` | Tables, index, FK. Run first. |
 | `db/policies.sql` | RLS. The only security layer. Run second. |
 | `db/seed-zones.sql` | Zone seed. Run third. |
-| `db/realtime.sql` | Adds `assets` to the Realtime publication. Run fourth — **Realtime is silent without it.** |
+| `db/realtime.sql` | Realtime publication + the `revision` change signal. Run fourth — **Realtime is silent without it, and hiding a slide is silent without the revision part.** |
 | `test-realtime.js` | `node test-realtime.js` — the Realtime state machine, no network needed. |
 | `admin/index.html` | Admin app. Single static file, no build step. |
 | `verify-security.sh` | Runs every §4.3 check. Release blocker, re-run quarterly. |

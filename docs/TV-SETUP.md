@@ -98,6 +98,13 @@ ada, curigai salah ketik URL lebih dulu.
 ## 5. Uji
 
 - [ ] Slide tampil dan berganti sendiri
+- [ ] Tombol **⛶ Fullscreen** muncul di kanan bawah. Tekan **OK** — toolbar browser
+      Samsung hilang dan gambar mengisi penuh layar. Tombolnya lalu hilang sendiri.
+- [ ] Setelah tombolnya hilang, tekan tombol arah di remote — tombolnya harus muncul lagi.
+      Ini yang dipakai staf kalau mereka terlambat menekannya.
+- [ ] Dengan `&debug=1`, baris `realtime` harus berbunyi `subscribed` dan `poll` jadi
+      `15 min`. Kalau `poll` masih `5 min (realtime not confirmed)`, langganan Realtime-nya
+      belum aktif — jalankan `db/realtime.sql` dan beri tahu Samuel.
 - [ ] **Cabut listrik TV, nyalakan lagi.** Lalu: TV on → Home → Internet. Halaman harus
       kembali muncul dalam 3 langkah itu saja. Kalau butuh lebih, catat apa yang terjadi.
 - [ ] Buka sekali dengan tambahan `&debug=1` di ujung URL. Periksa:

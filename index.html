@@ -18,6 +18,15 @@
   #dbg{position:absolute;top:0;left:0;max-width:1600px;max-height:100%;overflow:hidden;
        padding:24px;background:rgba(0,0,0,.82);color:#4ade80;
        font:20px/1.45 monospace;white-space:pre-wrap;display:none}
+  /* Operator control, inside the safe area. Deliberately large: it is pressed with a
+     remote from across the room. This is the one element allowed a focus style — §2.4.6
+     bans focus outlines for the guest-facing display, but a control navigated by remote
+     is unusable without one. */
+  #fs{position:absolute;right:96px;bottom:54px;display:none;
+      font:600 44px/1 Arial,Helvetica,sans-serif;color:#fff;cursor:pointer;
+      background:rgba(0,0,0,.72);border:3px solid rgba(255,255,255,.85);
+      border-radius:14px;padding:22px 38px}
+  #fs:focus{outline:none;border-color:#7fb0ff;background:rgba(16,38,78,.88)}
 </style>
 </head>
 <body>
@@ -25,6 +34,7 @@
 <div id="b" class="layer"></div>
 <div id="msg"></div>
 <div id="dbg"></div>
+<button id="fs" type="button">&#9974;&nbsp; Fullscreen</button>
 
 <script>
 /* Multi-Property TV Signage — TV app (brief v2.1 §3.2)
@@ -53,7 +63,7 @@
 var CFG = {
   url:     'https://lbtgbxexejvjqhmvpygm.supabase.co',
   key:     'sb_publishable_KnH-IbL0AMBVtIpPw-MfLA_qbUcEPzt',
-  version: '2'                       /* bump together with version.json, same commit */
+  version: '3'                       /* bump together with version.json, same commit */
 };
 /* ========================================== */
 
@@ -404,7 +414,17 @@ function rtConnect(){
         topic: 'realtime:signage',
         event: 'phx_join',
         payload: {
-          config: { postgres_changes: [{ event: '*', schema: 'public', table: 'assets' }] },
+          config: { postgres_changes: [
+            /* `revision` is the one that always arrives. Realtime only delivers a change
+               whose NEW row the subscriber may see, and hiding a slide makes the new row
+               invisible to anon — measured: showing reached the TV in 1s, hiding produced
+               no event at all. db/realtime.sql explains it in full.
+               `assets` is kept alongside it so that additions and un-hides still work if
+               the revision migration has not been applied yet. Either signal means the
+               same thing here — refetch — and the debounce coalesces the pair. */
+            { event: '*', schema: 'public', table: 'revision' },
+            { event: '*', schema: 'public', table: 'assets' }
+          ] },
           access_token: CFG.key
         },
         ref: String(++rtRef)
@@ -486,12 +506,70 @@ function paintDbg(){
                     (rtState === 'subscribed' ? '' : '  (realtime not confirmed)') + '\n' +
     'errors     ' + errors + '\n' +
     'motion     ' + (motion ? 'on' : 'reduced') + '\n' +
+    'fullscreen ' + (!fsSupported() ? 'unsupported' : (fsActive() ? 'on' : 'off — press the button')) + '\n' +
     'UA         ' + navigator.userAgent + '\n\n' +
     log.join('\n');
 }
 
+/* ---------- fullscreen (operator control) ----------
+   The Samsung browser keeps its own toolbar over the page, which eats the top of the
+   canvas. This hands it back.
+
+   The Fullscreen API requires a user gesture — a page cannot put itself fullscreen on
+   load, in any browser. So this is a button, pressed once by whoever opens the browser
+   in the morning: it becomes a fourth press after TV on, Home, Internet.
+
+   It must not sit on screen in an occupied guest room, so it shows itself for 30 seconds
+   after load — the window in which staff are actually standing there — then hides. Any
+   remote keypress brings it back, so a late arrival is never locked out. Entering
+   fullscreen hides it outright.
+
+   This does not reopen §1.3's "no guest interaction": nothing a guest presses changes
+   what is displayed. The keypress only reveals a control. */
+var fsEl       = document.getElementById('fs');
+var FS_HINT_MS = 30 * 1000;
+var fsTimer    = null;
+
+function fsSupported(){
+  var d = document.documentElement;
+  return !!(d.requestFullscreen || d.webkitRequestFullscreen);
+}
+function fsActive(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement ||
+            document.webkitIsFullScreen);
+}
+function fsHide(){
+  if (fsTimer){ clearTimeout(fsTimer); fsTimer = null; }
+  fsEl.style.display = 'none';
+}
+function fsShow(){
+  if (!fsSupported() || fsActive()) return;
+  fsEl.style.display = 'block';
+  try { fsEl.focus(); } catch (e){}          /* so OK/Enter works without arrow-keying to it */
+  if (fsTimer) clearTimeout(fsTimer);
+  fsTimer = setTimeout(fsHide, FS_HINT_MS);
+}
+function fsEnter(){
+  var d = document.documentElement, p = null;
+  try {
+    p = d.requestFullscreen ? d.requestFullscreen() : d.webkitRequestFullscreen();
+  } catch (e){ say('fullscreen: request threw'); return; }
+  if (p && p['catch']) p['catch'](function(e){
+    say('fullscreen refused: ' + ((e && e.name) || 'unknown'));
+  });
+}
+
+fsEl.onclick = fsEnter;
+function fsSync(){ if (fsActive()){ say('fullscreen: on'); fsHide(); } else fsShow(); }
+if (document.addEventListener){
+  document.addEventListener('fullscreenchange', fsSync, false);
+  document.addEventListener('webkitfullscreenchange', fsSync, false);
+  document.addEventListener('keydown', function(){ fsShow(); }, false);
+}
+
 /* ---------- boot ---------- */
 if (dbgOn){ dbgEl.style.display = 'block'; setInterval(paintDbg, 1000); }
+fsShow();
 say('boot v' + CFG.version);
 
 if (!property){

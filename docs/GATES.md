@@ -141,6 +141,60 @@ the situation §2.9 escalation path 2 exists for: move video to GitHub Releases,
   slide change was 17,280 conditional requests per TV per day; at 22 TVs the 304 response
   headers alone were 3.2 GB/month against a 5 GB cap. Now 0.2 GB/month.
 
+---
+
+## Run 3 — 2026-08-17, Realtime end to end
+
+Realtime confirmed working on the live project, and one design flaw found by testing it
+rather than reasoning about it.
+
+**Working.** With `db/realtime.sql` applied, the TV log read:
+
+```
+16:57:38  realtime: subscribed (server confirmed) — poll relaxed to 15 min
+16:57:38  playlist 2 slide(s) from network
+16:57:47  realtime: change received          <- operator clicked "Show on TVs"
+16:57:48  playlist 3 slide(s) from network
+```
+
+**One second** from admin click to TV update. Socket held with **0 drops**.
+
+**The flaw: hiding a slide delivered nothing.** Realtime only sends a change whose NEW row
+the subscriber is allowed to see, and the anon policy is `using (is_active = true)`:
+
+| Operation | New row visible to anon? | Event |
+|---|---|---|
+| Show a slide (`false → true`) | yes | **delivered in 1s** |
+| Hide a slide (`true → false`) | no | **suppressed entirely** |
+
+An independent socket capture confirmed it — exactly one frame across the whole session,
+for the show, none for the hide:
+
+```
+EVENT #1  type=UPDATE  new.is_active=true  old.keys=id
+```
+
+`old.keys=id` also shows the old record carries only the primary key (default replica
+identity), so the old state cannot rescue the check either.
+
+That is backwards from what matters: §5.6 makes `is_active = false` the emergency kill
+switch and promises it propagates in seconds.
+
+**Fix, in `db/realtime.sql`.** Loosening the anon SELECT policy was rejected — §4.3 requires
+hidden rows to stay unreadable, and that is a release blocker. Instead a one-row `revision`
+table holds a timestamp, is always readable, and is bumped by a statement-level trigger on
+every change to `assets`. The TV subscribes to that. The signal carries no content, the
+refetch still runs under full RLS, and being trigger-driven it also catches changes made
+from the SQL editor or dashboard.
+
+**Also fixed:** the app had reported `subscribed` after merely *not* being refused for 10
+seconds. The server states the outcome outright — `system | status: ok | "Subscribed to
+PostgreSQL"` — so that frame is now the only thing that promotes, alongside a delivered
+change. `test-realtime.js` scenario E pins it: a silent server must stay `joined` forever.
+
+Ruled out while diagnosing: the key type is irrelevant. Publishable key, anon JWT as
+`access_token`, or anon JWT for both — all three subscribe successfully.
+
 ## Still open after run 1
 
 | What | How |
