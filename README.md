@@ -133,8 +133,11 @@ mobile browsers, and G6 requires the full update cycle to be completable on a ph
 row has ↑/↓ buttons: works on phone and desktop, no library. A move rewrites `sort_order`
 across the whole list, so it also repairs duplicate values.
 
-**§3.3 — delete removes the row, never the media file.** §5.6's recovery path is
-re-importing the JSON export, and that can only restore media if the file still exists;
-Storage has no versioning and no backup on the free tier. "Hide from TVs" is the
-prominent, reversible action, delete is confirmed and explains what it keeps. Clean stale
-files from the Supabase dashboard deliberately.
+**§3.3 — delete removes the row and the media file.** Shipped row-only at first, on the
+reasoning that §5.6's recovery path is a JSON re-import and that can only restore media if
+the file still exists. Changed on the owner's decision 2026-08-14: orphaned files were
+silently eating the 1 GB storage cap, and that cost lands on him. The confirm prompt states
+plainly that the file cannot be recovered. Two guards: a file shared by another row is
+kept, and a `media_url` hosted outside the bucket is left alone — which is the case video
+will be in once it moves to external hosting (§2.9 path 2, FP4). "Hide from TVs" remains
+the prominent, reversible action.

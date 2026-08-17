@@ -352,18 +352,64 @@ async function move(i, dir){
   loadProperty();
 }
 
-/* Deletes the row only, never the file. §5.6 recovery is re-importing the JSON export,
-   and that can only restore media if the file still exists — Storage has no versioning
-   and no backup on the free tier. Hiding is the reversible action and is the one to
-   reach for; clean stale files from the Supabase dashboard deliberately. */
+/* Storage path for a media_url, or null when the file does not live in our bucket.
+   That second case is not hypothetical: video is moving to external hosting (§2.9
+   escalation path 2), and media_url stays absolute precisely so the TV cannot tell the
+   difference (FP4). Deleting such a row must not pretend to delete anything. */
+function bucketPath(url){
+  var marker = '/object/public/' + BUCKET + '/';
+  var i = String(url || '').indexOf(marker);
+  return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
+}
+
+/* Deletes the row AND the file. Owner's decision, taken 2026-08-14 — orphaned files
+   were silently eating the 1 GB storage cap.
+   The cost, stated plainly in the prompt: §5.6 recovery is re-importing the JSON export,
+   and that can only restore media if the file still exists. Storage has no versioning and
+   no backup on the free tier, so a delete here is final. "Hide from TVs" remains the
+   reversible action and the one to reach for by default. */
 async function removeRow(r){
-  if (!confirm('Delete this row?\n\nThe media file STAYS in storage, so this is ' +
-               'recoverable from a JSON export.\n\nTo simply take it off the TVs, ' +
-               'use "Hide from TVs" instead.')) return;
+  var path = bucketPath(r.media_url);
+
+  /* Another row may point at the same file — deleting it would break that slide. */
+  var shared = assets.filter(function(o){
+    return o.id !== r.id && o.media_url === r.media_url;
+  }).length;
+
+  var warning;
+  if (!path){
+    warning = 'The media file is hosted outside Supabase, so only this row will be ' +
+              'removed. The file itself is not touched.';
+  } else if (shared){
+    warning = 'The media file is also used by ' + shared + ' other slide(s), so the file ' +
+              'will be KEPT. Only this row is removed.';
+  } else {
+    warning = 'The media file will be PERMANENTLY DELETED from storage:\n  ' + path +
+              '\n\nThere are no backups on the free tier. A JSON export cannot bring the ' +
+              'file back — only the row.';
+  }
+
+  if (!confirm('Delete this slide?\n\n' + warning +
+               '\n\nTo simply take it off the TVs instead, use "Hide from TVs" — that is ' +
+               'reversible.')) return;
+
   status('Deleting…');
+  /* Row first. If the file delete then fails we are left with an unused file, which is
+     harmless and visible in the storage meter. The other order would leave a live row
+     pointing at nothing, which the TVs would have to skip. */
   var d = await db.from('assets').delete().eq('id', r.id);
   if (d.error) return fail('Delete failed', d.error);
-  status('Row deleted. File kept in storage.', 'ok');
+
+  if (path && !shared){
+    var s = await db.storage.from(BUCKET).remove([path]);
+    if (s.error){
+      loadProperty();
+      return fail('Row deleted, but the file could not be removed (' + path + ')', s.error);
+    }
+    status('Slide and its file deleted.', 'ok');
+  } else {
+    status('Row deleted. The file was kept.', 'ok');
+  }
   loadProperty();
 }
 
