@@ -53,7 +53,7 @@
 var CFG = {
   url:     'https://lbtgbxexejvjqhmvpygm.supabase.co',
   key:     'sb_publishable_KnH-IbL0AMBVtIpPw-MfLA_qbUcEPzt',
-  version: '1'                       /* bump together with version.json, same commit */
+  version: '2'                       /* bump together with version.json, same commit */
 };
 /* ========================================== */
 
@@ -64,7 +64,6 @@ var RETRY_MS     = 60 * 1000;        /* while sitting on the fallback slide */
 var RT_HEARTBEAT = 25 * 1000;        /* Phoenix closes an idle socket without these */
 var RT_DEBOUNCE  = 1500;             /* a reorder rewrites many rows — coalesce the burst */
 var RT_BACKOFF   = [2000, 5000, 15000, 30000, 60000];
-var RT_CONFIRM_MS = 10 * 1000;       /* grace window for an async subscription refusal */
 var FETCH_MS     = 8000;             /* §3.2.1 boot timeout */
 var FADE_MS      = 1000;             /* §2.4.5 */
 var ZOOM         = 1.06;             /* §2.4.4 */
@@ -350,23 +349,12 @@ var rtRef    = 0;
 var rtDrops  = 0;
 var rtSince  = 0;
 var rtDebounce = null;
-var rtTimer  = null;
-
-function rtClearConfirm(){ if (rtTimer){ clearTimeout(rtTimer); rtTimer = null; } }
-
 function rtSubscribed(why){
-  rtClearConfirm();
   if (rtState === 'subscribed') return;
   rtState = 'subscribed';
   say('realtime: subscribed (' + why + ') — poll relaxed to ' + (POLL_LIVE / 60000) + ' min');
 }
 
-/* The grace-window timer. Only promotes from 'joined' — if a refusal already moved us to
-   'error', a timer that fired afterwards must not quietly undo that. */
-function rtConfirmTimeout(){
-  rtClearConfirm();
-  if (rtState === 'joined') rtSubscribed('no refusal within ' + (RT_CONFIRM_MS / 1000) + 's');
-}
 
 function rtUrl(){
   return CFG.url.replace(/^http/, 'ws')
@@ -384,7 +372,6 @@ function rtChanged(why){
 }
 
 function rtStop(){
-  rtClearConfirm();
   if (rtBeat){ clearInterval(rtBeat); rtBeat = null; }
   if (rtSock){
     try { rtSock.onclose = null; rtSock.close(); } catch (e){}
@@ -442,7 +429,7 @@ function rtConnect(){
 
     if (d.event === 'phx_reply'){
       var st = d.payload && d.payload.status;
-      if (st === 'error'){ rtClearConfirm(); rtState = 'error'; say('realtime: join refused'); return; }
+      if (st === 'error'){ rtState = 'error'; say('realtime: join refused'); return; }
       if (st !== 'ok' || rtState === 'subscribed') return;
 
       /* `status: ok` means the CHANNEL joined. It does NOT mean postgres_changes is
@@ -452,20 +439,23 @@ function rtConnect(){
          Getting this wrong is the §2.8 silent failure in its purest form: the app would
          relax to 15-minute polling, report "subscribed", and never receive anything. */
       rtState = 'joined';
-      say('realtime: channel joined, confirming subscription');
-      rtClearConfirm();
-      rtTimer = setTimeout(rtConfirmTimeout, RT_CONFIRM_MS);
+      say('realtime: channel joined, waiting for the server to confirm');
       return;
     }
 
-    /* Where a refused postgres_changes subscription actually shows up — after the join
-       reply. Without db/realtime.sql applied, this is the only signal there is. */
+    /* Where the postgres_changes subscription is actually settled, after the join reply.
+       The server states the outcome outright — "Subscribed to PostgreSQL" or a refusal —
+       so there is nothing to infer.
+       An earlier version promoted to 'subscribed' when no refusal arrived within 10s.
+       That guess is what reported a healthy subscription while the poll had already been
+       relaxed to 15 minutes; 'joined' now stays un-relaxed until the server says so. */
     if (d.event === 'system'){
-      var msg = (d.payload && (d.payload.message || d.payload.status)) || '';
-      if (/unable to subscribe|error/i.test(String(msg))){
-        rtClearConfirm();
+      var msg = String((d.payload && d.payload.message) || '');
+      if (/subscribed to postgres/i.test(msg)){ rtSubscribed('server confirmed'); return; }
+      if (/unable to subscribe|error/i.test(msg) ||
+          (d.payload && d.payload.status === 'error')){
         rtState = 'error';
-        say('realtime: REFUSED — ' + String(msg).slice(0, 80));
+        say('realtime: REFUSED — ' + msg.slice(0, 80));
       }
       return;
     }
