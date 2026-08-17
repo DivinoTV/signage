@@ -14,7 +14,9 @@ Static files on GitHub Pages. No server. Supabase holds the data, the media and 
 | `version.json` | Version string. The TV polls it and reloads when it changes. |
 | `db/schema.sql` | Tables, index, FK. Run first. |
 | `db/policies.sql` | RLS. The only security layer. Run second. |
-| `db/seed-zones.sql` | 6 properties × 4 zones. Run third. |
+| `db/seed-zones.sql` | Zone seed. Run third. |
+| `db/realtime.sql` | Adds `assets` to the Realtime publication. Run fourth — **Realtime is silent without it.** |
+| `test-realtime.js` | `node test-realtime.js` — the Realtime state machine, no network needed. |
 | `admin/index.html` | Admin app. Single static file, no build step. |
 | `verify-security.sh` | Runs every §4.3 check. Release blocker, re-run quarterly. |
 | `docs/SETUP.md` | Step-by-step setup, written for a non-technical operator. |
@@ -39,7 +41,7 @@ Not built yet, and why: see the bottom of this file.
 ## Setup
 
 1. Create the Supabase project. Note the URL and anon key.
-2. Run `db/schema.sql`, `db/policies.sql`, `db/seed-zones.sql` in the SQL editor.
+2. Run `db/schema.sql`, `db/policies.sql`, `db/seed-zones.sql`, `db/realtime.sql` in the SQL editor.
 3. Create the `signage` bucket, **public read**.
 4. Create the admin user by hand in the dashboard, then **disable public signup**.
 5. Paste the URL and anon key into the `CFG` block at the top of `index.html`
@@ -92,8 +94,7 @@ Sources live in `assets-src/` and are not served. Export to
 
 | Piece | Blocked on |
 |---|---|
-| Video playback (M8) | G1, G2, G4. Video rows are skipped and logged until then. |
-| Realtime (M6) | N2. Polling at 5 min is the complete fallback and already runs. |
+| Video playback (M8) | External hosting. G4 passed, but G1/G3 failed: this panel re-fetches the whole file every loop — 49.96 GB in one night. Video rows are skipped and logged. See GATES.md. |
 | Motion polish (M7) | Needs 10 minutes observed on a real TV, not a desktop. |
 | Samsung menu paths in `TV-SETUP.md` | Vary by model year — fill in from the first TV. |
 
@@ -127,6 +128,20 @@ step before every deploy. It ships as a single static `admin/index.html`, so the
 `admin-src/` and no build. `supabase-js` loads from a CDN here — forbidden on the TV,
 fine on the admin, because a CDN failure means the operator retries rather than a guest
 room going blank (§0.2 failure cost).
+
+**§2.5 — Realtime uses a raw WebSocket, not a vendored `supabase-js` bundle.** The brief
+asks for the UMD bundle committed to the repo and warns it must never come from a CDN. The
+reasoning behind that warning is sound and is why it is not on a CDN here either — but the
+bundle itself turned out to be unnecessary. Gate run 2 held exactly this kind of raw socket
+for 7h11m with 2 drops across 14 hours on the actual TV, and the client needs about 70
+lines against a 120 KB dependency. It also removes the brief's own stated worry — "if the
+bundle fails to parse on the TV's engine" — because there is no bundle.
+
+What makes the tradeoff safe is that the payload is never read. Any change to `assets`
+simply means "refetch", and `fetchPlaylist` already validates before adopting (§3.2.2). So
+there is no protocol surface to get subtly wrong, and every failure path lands on polling,
+which already works. `test-realtime.js` pins the one property that matters: polling may
+only relax to 15 minutes when the subscription is genuinely confirmed.
 
 **§3.3 — reorder buttons instead of drag-and-drop.** HTML5 drag-and-drop does not work in
 mobile browsers, and G6 requires the full update cycle to be completable on a phone. Each

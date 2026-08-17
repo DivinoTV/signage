@@ -4,6 +4,7 @@
    index.html so it cannot drift from what ships. */
 var fs = require('fs');
 var src = fs.readFileSync(__dirname + '/index.html', 'utf8');
+var js = /<script>([\s\S]*)<\/script>/.exec(src)[1];
 var m = /function usable\(rows\)\{[\s\S]*?\n\}/.exec(src);
 if (!m) { console.error('FAIL: usable() not found in index.html'); process.exit(1); }
 
@@ -70,5 +71,24 @@ files.forEach(function(f){
     'fallback/' + f + ' matches neither "' + sharedName + '" nor "' + fmt.split('/').pop() +
     '" — the TV will never request it');
 });
-console.log('ok — 22 assertions + ' + files.length + ' fallback file(s) named correctly' +
-  (files.length ? ' (' + files.join(', ') + ')' : ''));
+/* ES5 baseline (§2.5). Gate run 2 measured the real panel as Chromium 130, so this is no
+   longer strictly required — but the brief says re-run V3 at each new property, and an
+   older panel elsewhere would reinstate the constraint. Cheap to keep, expensive to
+   rediscover on a TV with no devtools.
+   Block comments are stripped first: prose quoting words like async, or naming a header in
+   backticks, was tripping an earlier ad-hoc version of this check. A lint that cries wolf
+   gets ignored, which is worse than not having one. */
+var code = js.replace(/\/\*[\s\S]*?\*\//g, '');
+[
+  [/=>/,                 'arrow function'],
+  [/\b(?:let|const)\s/,  'let/const'],
+  [/`/,                  'template literal'],
+  [/\?\./,               'optional chaining'],
+  [/\?\?/,               'nullish coalescing'],
+  [/\b(?:async|await)\b/, 'async/await']
+].forEach(function(p){
+  assert.ok(!p[0].test(code), 'index.html uses ' + p[1] + ' — outside the ES5 baseline');
+});
+
+console.log('ok — 28 assertions + ' + files.length + ' fallback file(s) named correctly' +
+  (files.length ? ' (' + files.join(', ') + ')' : '') + ' + ES5 baseline clean');

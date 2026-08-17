@@ -31,10 +31,16 @@
    ES5 + XHR only. No framework, no build step, no CDN, no library on this path.
    URL: index.html?property=<slug>&type=<zone-slug>[&debug=1]
 
+   Realtime (M6) is in, unblocked by gate run 2: the socket held 7h11m with 2 drops
+   across 14 hours on the real TV. It is layered on top of a fully working polling app,
+   exactly as §2.5 requires — every failure path lands back on polling.
+   Needs db/realtime.sql applied, or the server joins the channel and then silently
+   refuses to send anything.
+
    NOT IMPLEMENTED YET, on purpose:
-     - video playback  -> M8, gated on G1/G2/G4. Video rows are skipped and logged.
-     - Realtime        -> M6, gated on N2. Polling below is the complete fallback.
-   Both are additive. Nothing here changes when they land. */
+     - video playback -> M8. G4 passed but G1/G3 failed: this panel re-fetches the whole
+       file on every loop, which cost 49.96 GB in one night. Video is waiting on external
+       hosting (§2.9 path 2). Video rows are skipped and logged until then. */
 (function(){
 'use strict';
 
@@ -51,8 +57,14 @@ var CFG = {
 };
 /* ========================================== */
 
-var POLL_MS      = 5 * 60 * 1000;    /* §2.8 disconnected value — Realtime does not exist yet */
+var POLL_LIVE    = 15 * 60 * 1000;   /* §2.8 — reconciliation while Realtime is subscribed */
+var POLL_DOWN    = 5 * 60 * 1000;    /* §2.8 — Realtime unavailable, poll harder */
+var PROBE_TTL    = 5 * 60 * 1000;    /* re-verify a media URL at most this often */
 var RETRY_MS     = 60 * 1000;        /* while sitting on the fallback slide */
+var RT_HEARTBEAT = 25 * 1000;        /* Phoenix closes an idle socket without these */
+var RT_DEBOUNCE  = 1500;             /* a reorder rewrites many rows — coalesce the burst */
+var RT_BACKOFF   = [2000, 5000, 15000, 30000, 60000];
+var RT_CONFIRM_MS = 10 * 1000;       /* grace window for an async subscription refusal */
 var FETCH_MS     = 8000;             /* §3.2.1 boot timeout */
 var FADE_MS      = 1000;             /* §2.4.5 */
 var ZOOM         = 1.06;             /* §2.4.4 */
@@ -204,14 +216,14 @@ function adopt(rows, src){
    every un-memoised probe is a conditional request — cheap individually (304, zero
    body) but not free in aggregate: at 10-second slides that is 17,280 requests per TV
    per day, and across 22 TVs the 304 response headers alone came to 3.2 GB/month
-   against a 5 GB cap. Verifying once per cycle costs 0.2 GB/month instead.
+   against a 5 GB cap. Verifying once per PROBE_TTL costs 0.2 GB/month instead.
    The memo is in-memory, so a cold boot still probes everything for real — which is
    the case that actually needs it (cached rows pointing at media the browser no
    longer holds). adopt() clears it whenever a new playlist lands. */
 function probe(url, cb){
   if ((fails[url] || 0) >= MAX_FAILS) return cb(false);
   var now = new Date().getTime();
-  if (okAt[url] && (now - okAt[url]) < POLL_MS) return cb(true);
+  if (okAt[url] && (now - okAt[url]) < PROBE_TTL) return cb(true);
   var img = new Image(), done = false;
   img.onload  = function(){ if (!done){ done = true; fails[url] = 0; okAt[url] = now; cb(true); } };
   img.onerror = function(){
@@ -308,12 +320,164 @@ function checkVersion(){
   });
 }
 
+/* §2.8 — Realtime is the fast path, this is the safety net, and it runs regardless of
+   subscription state. The interval only relaxes to 15 minutes once the subscription is
+   genuinely confirmed; anything less than that keeps it at 5. A socket that opens but
+   never subscribes is therefore indistinguishable, in behaviour, from no socket at all. */
+function pollMs(){ return rtState === 'subscribed' ? POLL_LIVE : POLL_DOWN; }
+
 function poll(){
   setTimeout(function(){
     fetchPlaylist();
     checkVersion();
     poll();
-  }, POLL_MS);
+  }, pollMs());
+}
+
+/* ---------- Realtime (M6, §2.8) ----------
+   Raw WebSocket, no library. See README "Deviations" — the brief asks for a vendored
+   supabase-js UMD bundle; this is ~70 lines against a 120 KB dependency, and the gate
+   run held exactly this kind of socket for 7h11m on the actual TV.
+
+   It is a pure optimisation. Every failure path here lands on polling, which already
+   works, so the worst outcome is slower updates rather than stale ones. Nothing in this
+   section may throw into the render loop — hence the try/catch around the whole thing. */
+var rtState  = 'off';        /* off | connecting | open | subscribed | error */
+var rtSock   = null;
+var rtBeat   = null;
+var rtTries  = 0;
+var rtRef    = 0;
+var rtDrops  = 0;
+var rtSince  = 0;
+var rtDebounce = null;
+var rtTimer  = null;
+
+function rtClearConfirm(){ if (rtTimer){ clearTimeout(rtTimer); rtTimer = null; } }
+
+function rtSubscribed(why){
+  rtClearConfirm();
+  if (rtState === 'subscribed') return;
+  rtState = 'subscribed';
+  say('realtime: subscribed (' + why + ') — poll relaxed to ' + (POLL_LIVE / 60000) + ' min');
+}
+
+/* The grace-window timer. Only promotes from 'joined' — if a refusal already moved us to
+   'error', a timer that fired afterwards must not quietly undo that. */
+function rtConfirmTimeout(){
+  rtClearConfirm();
+  if (rtState === 'joined') rtSubscribed('no refusal within ' + (RT_CONFIRM_MS / 1000) + 's');
+}
+
+function rtUrl(){
+  return CFG.url.replace(/^http/, 'ws')
+    + '/realtime/v1/websocket?apikey=' + encodeURIComponent(CFG.key) + '&vsn=1.0.0';
+}
+
+/* We never read the payload. Any change to the assets table means "refetch and revalidate",
+   and fetchPlaylist already validates before adopting (§3.2.2). That makes this immune
+   to payload-shape surprises, and it means an RLS-filtered event we cannot see is simply
+   covered by the reconciliation poll instead. */
+function rtChanged(why){
+  say('realtime: ' + why);
+  clearTimeout(rtDebounce);
+  rtDebounce = setTimeout(fetchPlaylist, RT_DEBOUNCE);
+}
+
+function rtStop(){
+  rtClearConfirm();
+  if (rtBeat){ clearInterval(rtBeat); rtBeat = null; }
+  if (rtSock){
+    try { rtSock.onclose = null; rtSock.close(); } catch (e){}
+    rtSock = null;
+  }
+}
+
+function rtReconnect(){
+  rtStop();
+  var wait = RT_BACKOFF[Math.min(rtTries, RT_BACKOFF.length - 1)];
+  rtTries++;
+  setTimeout(rtConnect, wait);
+}
+
+function rtConnect(){
+  if (!window.WebSocket){ rtState = 'off'; say('realtime: no WebSocket support'); return; }
+  try {
+    rtState = 'connecting';
+    rtSock = new WebSocket(rtUrl());
+  } catch (e){
+    rtState = 'error'; say('realtime: open failed'); rtReconnect(); return;
+  }
+
+  rtSock.onopen = function(){
+    rtState = 'open';
+    rtSince = new Date().getTime();
+    rtTries = 0;
+    try {
+      rtSock.send(JSON.stringify({
+        topic: 'realtime:signage',
+        event: 'phx_join',
+        payload: {
+          config: { postgres_changes: [{ event: '*', schema: 'public', table: 'assets' }] },
+          access_token: CFG.key
+        },
+        ref: String(++rtRef)
+      }));
+    } catch (e){ rtState = 'error'; }
+    rtBeat = setInterval(function(){
+      try {
+        rtSock.send(JSON.stringify({
+          topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++rtRef)
+        }));
+      } catch (e){}
+    }, RT_HEARTBEAT);
+  };
+
+  rtSock.onmessage = function(m){
+    var d = null;
+    try { d = JSON.parse(m.data); } catch (e){ return; }
+    if (!d || !d.event) return;
+
+    /* Proof positive. A change actually arrived, so the subscription is real. */
+    if (d.event === 'postgres_changes'){ rtSubscribed('change received'); rtChanged('change received'); return; }
+
+    if (d.event === 'phx_reply'){
+      var st = d.payload && d.payload.status;
+      if (st === 'error'){ rtClearConfirm(); rtState = 'error'; say('realtime: join refused'); return; }
+      if (st !== 'ok' || rtState === 'subscribed') return;
+
+      /* `status: ok` means the CHANNEL joined. It does NOT mean postgres_changes is
+         subscribed — the reply even echoes back a postgres_changes id that turns out to be
+         useless. A refusal arrives afterwards as a separate `system` frame, so success can
+         only be claimed once that window has closed without one.
+         Getting this wrong is the §2.8 silent failure in its purest form: the app would
+         relax to 15-minute polling, report "subscribed", and never receive anything. */
+      rtState = 'joined';
+      say('realtime: channel joined, confirming subscription');
+      rtClearConfirm();
+      rtTimer = setTimeout(rtConfirmTimeout, RT_CONFIRM_MS);
+      return;
+    }
+
+    /* Where a refused postgres_changes subscription actually shows up — after the join
+       reply. Without db/realtime.sql applied, this is the only signal there is. */
+    if (d.event === 'system'){
+      var msg = (d.payload && (d.payload.message || d.payload.status)) || '';
+      if (/unable to subscribe|error/i.test(String(msg))){
+        rtClearConfirm();
+        rtState = 'error';
+        say('realtime: REFUSED — ' + String(msg).slice(0, 80));
+      }
+      return;
+    }
+  };
+
+  rtSock.onerror  = function(){ if (rtState !== 'subscribed') rtState = 'error'; };
+  rtSock.onclose  = function(){
+    if (rtState === 'subscribed' || rtState === 'open') rtDrops++;
+    rtState = 'connecting';
+    say('realtime: socket closed, reconnecting');
+    rtReconnect();
+  };
 }
 
 /* ---------- diagnostics (§3.2.7) ---------- */
@@ -326,8 +490,10 @@ function paintDbg(){
     'playlist   ' + playlist.length + ' slide(s)\n' +
     'slide      ' + (idx + 1) + '  ' + cur + '\n' +
     'last fetch ' + lastOk + '\n' +
-    'realtime   not implemented (M6, gated on N2)\n' +
-    'poll       ' + (POLL_MS / 60000) + ' min\n' +
+    'realtime   ' + rtState + (rtSince ? '  held ' + Math.round((new Date().getTime() - rtSince) / 1000) + 's' : '') +
+                    '  drops ' + rtDrops + '\n' +
+    'poll       ' + (pollMs() / 60000) + ' min' +
+                    (rtState === 'subscribed' ? '' : '  (realtime not confirmed)') + '\n' +
     'errors     ' + errors + '\n' +
     'motion     ' + (motion ? 'on' : 'reduced') + '\n' +
     'UA         ' + navigator.userAgent + '\n\n' +
@@ -344,6 +510,11 @@ if (!property){
 } else {
   fetchPlaylist();
   poll();
+  /* Realtime last, and inside a try/catch. §2.5: build the app so it works fully with
+     Realtime removed, then add Realtime. Everything above this line is that app — if the
+     next line throws on some panel we have not met, the screen keeps running on polling
+     and only the diagnostics overlay records it (F10). */
+  try { rtConnect(); } catch (e){ rtState = 'error'; say('realtime: init failed'); }
 }
 
 })();
