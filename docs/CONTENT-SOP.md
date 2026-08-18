@@ -56,6 +56,26 @@ atau pindahkan detailnya ke balik QR code.
 Kalau hasil ekspor jauh di atas itu, turunkan kualitas JPEG-nya. File besar membakar
 kuota egress dan itu batasan paling sempit di seluruh sistem.
 
+Ini bukan anjuran kosmetik. Terukur pada tiga slide pertama Divino Gili Air: aslinya
+0,95–1,45 MB per file, total 3,59 MB satu putaran. Dikompresi ke dalam spec jadi 1,27 MB —
+dan proyeksi egress untuk 22 TV turun dari ~2,6 GB jadi ~1,2 GB per bulan, dari plafon 5 GB.
+Selisih itulah ruang untuk properti kedua dan ketiga.
+
+**Kalau hasil ekspor kebesaran, kompres dari Terminal** — tidak perlu buka aplikasi desain
+lagi. Ganti angka `70` sampai ukurannya masuk 300–500 KB (angka lebih kecil = file lebih
+kecil):
+
+```bash
+sips -s format jpeg -s formatOptions 70 masukan.jpg --out keluaran.jpg && ls -lh keluaran.jpg
+```
+
+Kualitas yang pas berbeda per gambar: foto dengan banyak detail butuh angka lebih rendah,
+desain berlatar rata bisa lebih tinggi. Untuk ketiga slide pertama angkanya ternyata 68, 56,
+dan 80.
+
+**Kalau gambarnya memuat QR code, cek ulang setelah dikompresi** — scan sendiri pakai HP.
+Kompresi terlalu keras bisa merusak QR tanpa terlihat rusak oleh mata.
+
 **Video** — tanpa suara, 15–25 detik. Jalankan ini di Terminal:
 
 ```bash
