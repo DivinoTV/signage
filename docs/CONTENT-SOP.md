@@ -1,7 +1,8 @@
 # Cara Membuat & Menerbitkan Slide
 
-Untuk Samuel. Semua teks dibakar ke dalam artwork — halaman TV hanya mengurus urutan,
-pergantian, dan gerakan. Jadi kualitas tampilan sepenuhnya ditentukan di tahap desain.
+Untuk Samuel. Semua teks dibakar ke dalam artwork — halaman TV hanya mengurus urutan dan
+pergantian antar slide. Gambarnya statis — tidak ada gerakan sama sekali. Jadi kualitas
+tampilan sepenuhnya ditentukan di tahap desain.
 
 ---
 
@@ -141,5 +142,9 @@ Simpan file export di tempat yang Anda percaya. Menaruhnya di folder project lal
 | File yang diupload keliru | Upload file yang benar sebagai slide baru, lalu sembunyikan yang lama. Jangan pernah menimpa file. |
 | Konten terhapus tidak sengaja | Ambil dari file JSON export terbaru. |
 
-Tombol **Delete row** hanya membuang baris databasenya; file gambarnya tetap tersimpan.
-Itu disengaja, supaya masih bisa dipulihkan dari export.
+Tombol **Delete** membuang baris databasenya **dan** file gambarnya sekaligus, dan itu
+permanen — tier gratis tidak punya backup, dan file export hanya bisa memulihkan barisnya,
+bukan gambarnya. Kalau ragu, pakai **Hide from TVs** dulu: itu bisa dibatalkan.
+
+Dua pengaman ada di sana: file yang dipakai slide lain tidak akan dihapus, dan file yang
+di-host di luar Supabase tidak disentuh sama sekali.
