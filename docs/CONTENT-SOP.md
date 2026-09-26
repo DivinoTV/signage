@@ -62,9 +62,10 @@ Ini bukan anjuran kosmetik. Terukur pada tiga slide pertama Divino Gili Air: asl
 dan proyeksi egress untuk 22 TV turun dari ~2,6 GB jadi ~1,2 GB per bulan, dari plafon 5 GB.
 Selisih itulah ruang untuk properti kedua dan ketiga.
 
-**Kalau hasil ekspor kebesaran, kompres dari Terminal** — tidak perlu buka aplikasi desain
-lagi. Ganti angka `70` sampai ukurannya masuk 300–500 KB (angka lebih kecil = file lebih
-kecil):
+**Admin panel sekarang mengecilkan gambar otomatis saat upload** (target ~450 KB, sisi
+terpanjang 1920 px), dan slide lama yang kebesaran ditandai dengan tombol **Shrink**. Jadi
+biasanya Anda tidak perlu mengompres sendiri. Perintah Terminal di bawah hanya untuk kalau
+butuh file kecilnya di luar admin — ganti angka `70` sampai ukurannya masuk 300–500 KB:
 
 ```bash
 sips -s format jpeg -s formatOptions 70 masukan.jpg --out keluaran.jpg && ls -lh keluaran.jpg
@@ -108,18 +109,22 @@ URL pendek = kotak QR lebih besar = jauh lebih mudah discan.
 
 ## 6. Terbitkan
 
-1. Buka admin panel, login.
-2. Pilih properti.
-3. Pilih file, set **Category / Area** dan **Duration**.
+1. Buka `https://divinotv.github.io/signage/admin/`, login.
+2. Di kotak **Add slides**, pilih dulu **Show on** dan **Seconds on screen**.
    - **All categories** = tampil di semua TV properti itu. Ini yang paling sering dipakai.
-   - Kategori tertentu = hanya TV di kategori kamar itu. Pakai ini hanya untuk hal yang
-     memang beda, misal fasilitas kamar atau penawaran upgrade.
-4. Klik **Upload and publish**.
-5. Kalau slide ini ada masa berlaku, isi **Show from** dan **Hide after**. Slide akan
-   muncul dan hilang sendiri, tanpa Anda perlu ingat mematikannya.
-6. Atur urutan dengan tombol ↑ / ↓.
-7. Cek di satu TV. Perubahan masuk dalam waktu maksimal 5 menit.
-8. **KLIK EXPORT.**
+   - Kategori tertentu = hanya TV di kategori kamar itu. Pakai hanya untuk hal yang memang
+     beda, misal fasilitas kamar atau penawaran upgrade.
+3. Seret gambar ke kotak itu — atau ke mana saja di halaman — atau klik untuk memilih. Bisa
+   beberapa sekaligus. Yang kebesaran dikecilkan otomatis sebelum diupload.
+4. Slide langsung terbit, masuk di urutan paling bawah. Seret handle titik-titik di kirinya
+   untuk mengatur urutan (di HP juga bisa).
+5. Kalau ada masa berlaku, klik slide-nya → nyalakan **Only show between certain dates** →
+   pilih "For 7 days" dan seterusnya, atau isi tanggalnya sendiri. Slide akan muncul dan
+   hilang sendiri, tanpa Anda perlu ingat mematikannya.
+6. Cek di panel **What the TVs show**. Itu halaman TV yang asli, bukan tiruan, dan
+   perubahan masuk dalam hitungan detik — sama seperti di TV.
+7. **Klik Export backup.** Admin akan mengingatkan kalau backup terakhir dari perangkat itu
+   sudah lebih dari 7 hari.
 
 ---
 
@@ -138,13 +143,13 @@ Simpan file export di tempat yang Anda percaya. Menaruhnya di folder project lal
 
 | Situasi | Tindakan |
 |---|---|
-| Slide salah sudah tayang | Klik **Hide from TVs**. Hilang dalam maksimal 5 menit. Ini yang paling aman. |
+| Slide salah sudah tayang | Matikan switch-nya (**On → Off**). Hilang dari TV dalam hitungan detik, dan bisa di-**Undo**. Ini yang paling aman. |
 | File yang diupload keliru | Upload file yang benar sebagai slide baru, lalu sembunyikan yang lama. Jangan pernah menimpa file. |
 | Konten terhapus tidak sengaja | Ambil dari file JSON export terbaru. |
 
-Tombol **Delete** membuang baris databasenya **dan** file gambarnya sekaligus, dan itu
-permanen — tier gratis tidak punya backup, dan file export hanya bisa memulihkan barisnya,
-bukan gambarnya. Kalau ragu, pakai **Hide from TVs** dulu: itu bisa dibatalkan.
+Tombol **Delete slide** (di dalam panel edit, bukan di daftar) membuang baris databasenya
+**dan** file gambarnya sekaligus, setelah satu konfirmasi, dan itu permanen — tier gratis tidak punya backup, dan file export hanya bisa memulihkan barisnya,
+bukan gambarnya. Kalau ragu, matikan switch-nya dulu: itu bisa dibatalkan.
 
 Dua pengaman ada di sana: file yang dipakai slide lain tidak akan dihapus, dan file yang
 di-host di luar Supabase tidak disentuh sama sekali.

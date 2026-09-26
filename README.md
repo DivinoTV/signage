@@ -113,6 +113,25 @@ The brief specifies the admin dropdown label as "Kategori / Area" and an option 
 reasoning behind FP5 still stands — the operator-facing label is a different concern
 from the column name `zone` — only the language changes.
 
+## Admin panel (redesigned 2026-09-26)
+
+Built against the `ui-ux-pro-max` guidelines: WCAG AA contrast verified for every pair in
+both themes, 44 px touch targets on touch devices, SVG icons only, light and dark mode,
+`prefers-reduced-motion` respected, no horizontal scroll at 375 px.
+
+What it does beyond the brief's §3.3 list, and why each exists:
+
+| Feature | The problem it answers |
+|---|---|
+| **Auto-shrink on upload** — canvas re-encode to ≤480 KB, 1920 px longest edge | Oversized artwork was the single biggest egress risk. Measured on the real slides: 1244→453, 1484→475, 950→306 KB, 30–130 ms each, QR on slide 1 verified identical with jsQR |
+| **Shrink** for already-published slides, one at a time or all at once | The three live slides were still the uncompressed originals. Downloads, re-encodes, uploads to a new path, repoints the row, deletes the old file — §5.6's "wrong media file" recovery, automated |
+| **Needs attention** banner | Surfaces oversized images, unused storage files, video rows that won't show, and a stale backup — each with its fix one tap away |
+| **Real status**, not the raw flag: Live / Scheduled / Ended / Hidden | The old admin said "LIVE" for a slide whose schedule had ended while the TVs had already dropped it. Status now mirrors the TV's own filter |
+| **Live TV preview** per room category | An iframe of the real TV page (`&preview=1` only hides the Fullscreen icon), so there is no second renderer to drift. It subscribes to Realtime like a TV, so edits appear by themselves. Answers "what does a Deluxe room actually see?" — the zone-inheritance rule, made visible |
+| **Undo** on hide/show; two-step confirm on delete | Reversible actions shouldn't nag; irreversible ones must confirm (skill: High severity). No native `confirm()` dialogs |
+| **Unused-file cleanup** | Orphans were silently eating the 1 GB cap. Two taps, and refused while an upload is in flight — a file uploaded a moment ago has no row yet and would look exactly like an orphan |
+| Multi-file drop anywhere on the page, duration chips, schedule presets, Enter-to-sign-in, show-password | Fewer steps for the most common tasks |
+
 ## Deviations from the brief
 
 Raised rather than substituted silently, per standing rule 5.
@@ -144,10 +163,17 @@ there is no protocol surface to get subtly wrong, and every failure path lands o
 which already works. `test-realtime.js` pins the one property that matters: polling may
 only relax to 15 minutes when the subscription is genuinely confirmed.
 
-**§3.3 — reorder buttons instead of drag-and-drop.** HTML5 drag-and-drop does not work in
-mobile browsers, and G6 requires the full update cycle to be completable on a phone. Each
-row has ↑/↓ buttons: works on phone and desktop, no library. A move rewrites `sort_order`
-across the whole list, so it also repairs duplicate values.
+**§3.3 — drag-to-reorder with pointer events, not HTML5 drag-and-drop.** HTML5 DnD does
+not work in mobile browsers, and G6 requires the full update cycle to work from a phone.
+The first version shipped ↑/↓ buttons for that reason; the 2026-09-26 redesign replaced
+them with a drag handle built on pointer events (which do work on touch), plus arrow-key
+reordering on the focused handle for keyboard use. A move rewrites `sort_order` across the
+whole list, so it also repairs duplicate values.
+
+**§3.3 — video uploads are blocked (`ALLOW_VIDEO = false`).** The brief allows video.
+The TVs skip video rows until M8, and serving video from Supabase Storage cost 49.96 GB in
+one night during gate run 2 — so an uploaded video could only ever produce a slide that
+never appears. Flip the constant once video has somewhere safe to live.
 
 **§3.3 — delete removes the row and the media file.** Shipped row-only at first, on the
 reasoning that §5.6's recovery path is a JSON re-import and that can only restore media if

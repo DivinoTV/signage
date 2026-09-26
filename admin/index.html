@@ -2,548 +2,1406 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Signage Admin</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F7F3ED" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14110E" media="(prefers-color-scheme: dark)">
+<title>Divino TV · Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236E4424' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='13' rx='2'/%3E%3Cpath d='M8 21h8M12 17v4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
 <style>
-  :root{ --bg:#111318; --card:#1a1d24; --line:#2b303b; --ink:#e8eaf0; --dim:#8b93a5;
-         --accent:#4f8cff; --warn:#fbbf24; --bad:#f87171; --ok:#4ade80 }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  .wrap{max-width:820px;margin:0 auto;padding:20px 16px 80px}
-  h1{font-size:20px;margin:0}
-  h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
-     margin:28px 0 10px;font-weight:600}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
-  label{display:block;font-size:13px;color:var(--dim);margin:10px 0 4px}
-  input,select,button{font:inherit;color:var(--ink);background:#22262f;
-       border:1px solid var(--line);border-radius:8px;padding:11px 12px;width:100%}
-  input[type=checkbox]{width:22px;height:22px;padding:0;vertical-align:middle}
-  button{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;cursor:pointer}
-  button.ghost{background:#22262f;border-color:var(--line);color:var(--ink);font-weight:500}
-  button.danger{background:#2a1c1e;border-color:#5b2c30;color:var(--bad);font-weight:500}
-  button:disabled{opacity:.5;cursor:default}
-  .row{display:flex;gap:8px;align-items:center}
-  .row>*{flex:1}
-  .row>.fix{flex:0 0 auto;width:auto}
-  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;
-       padding-bottom:14px;border-bottom:1px solid var(--line)}
-  .top button{width:auto;padding:8px 14px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  @media (max-width:560px){ .grid{grid-template-columns:1fr} }
-  .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:6px;display:block}
-  .meta{font-size:13px;color:var(--dim);word-break:break-all}
-  .pill{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;
-        border:1px solid var(--line);color:var(--dim)}
-  .pill.off{color:var(--bad);border-color:#5b2c30}
-  .pill.on{color:var(--ok);border-color:#255c39}
-  #status{position:fixed;left:0;right:0;bottom:0;padding:12px 16px;text-align:center;
-          font-size:14px;background:#22262f;border-top:1px solid var(--line);display:none}
-  #status.err{background:#3a1d20;color:#ffc9cd}
-  #status.ok{background:#17301f;color:#c9f5d8}
-  .bar{height:8px;background:#22262f;border-radius:99px;overflow:hidden;margin-top:8px}
-  .bar>i{display:block;height:100%;background:var(--accent)}
-  .note{font-size:13px;color:var(--warn);margin-top:8px}
-  .hint{font-size:13px;color:var(--dim);margin-top:6px}
-  hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+/* Signage admin — design system
+   Palette taken from the Divino artwork (cream, deep brown), not a generic hotel palette.
+   Every text/background pair is verified at WCAG AA (4.5:1) in both themes.
+   One web font, for the wordmark only; the rest is the system UI font, which is the most
+   legible choice on each device and costs no download. */
+:root{
+  color-scheme:light dark;
+  --bg:#F7F3ED; --surface:#FFFFFF; --surface-2:#FBF8F4; --sunken:#F1EBE3;
+  --ink:#231A12; --ink-2:#5C4E42; --line:#E6DDD1; --line-2:#D6C9B9;
+  --brand:#6E4424; --brand-hover:#5A371C; --brand-ink:#FFFFFF; --brand-soft:#F3E9DF;
+  --live:#1F7A45; --live-soft:#E6F4EC;
+  --sched:#1D5FA8; --sched-soft:#E7F0FB;
+  --warn:#8A5100; --warn-soft:#FFF4E0; --warn-line:#EFD3A0;
+  --danger:#B3261E; --danger-ink:#FFFFFF; --danger-soft:#FCEBEA;
+  --mute-soft:#EFE9E1;
+  --shadow:0 1px 2px rgba(35,26,18,.05),0 6px 20px rgba(35,26,18,.06);
+  --shadow-lg:0 20px 50px rgba(35,26,18,.2);
+  --ring:0 0 0 3px rgba(110,68,36,.35);
+  --r:14px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14110E; --surface:#1E1914; --surface-2:#231D17; --sunken:#19150F;
+  --ink:#F3ECE3; --ink-2:#B9AB9C; --line:#342B23; --line-2:#4A3D31;
+  --brand:#D9A877; --brand-hover:#E6B98C; --brand-ink:#1A120B; --brand-soft:#2E241A;
+  --live:#5CCB8A; --live-soft:#17291F;
+  --sched:#7FB2F0; --sched-soft:#16222F;
+  --warn:#F2B35C; --warn-soft:#2B2012; --warn-line:#5A4020;
+  --danger:#F2837B; --danger-ink:#1A0E0C; --danger-soft:#2E1917;
+  --mute-soft:#2A231C;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  --shadow-lg:0 20px 50px rgba(0,0,0,.55);
+  --ring:0 0 0 3px rgba(217,168,119,.45);
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+a{color:inherit}
+:focus-visible{outline:none;box-shadow:var(--ring)}
+.i{width:20px;height:20px;flex:0 0 auto}
+.help{font-size:13px;color:var(--ink-2);line-height:1.45}
+.label{font-size:14px;font-weight:600;color:var(--ink);padding:0}
+.field{display:grid;gap:6px;align-content:start}
+
+/* buttons — every interactive target is at least 44px tall (skill: touch-target-size) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;
+  border-radius:12px;border:1px solid transparent;background:var(--brand);color:var(--brand-ink);
+  font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;white-space:nowrap;
+  transition:background-color .15s,border-color .15s,color .15s,opacity .15s}
+.btn:hover{background:var(--brand-hover)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-2)}
+.btn.ghost:hover{background:var(--sunken)}
+.btn.quiet{background:transparent;color:var(--ink-2)}
+.btn.quiet:hover{background:var(--sunken);color:var(--ink)}
+.btn.danger{background:var(--danger);color:var(--danger-ink)}
+.btn.danger:hover{background:var(--danger);filter:brightness(.93)}
+.btn.danger-ghost{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn.danger-ghost:hover{background:var(--danger-soft)}
+.btn.sm{min-height:40px;padding:0 14px;font-size:14px;border-radius:10px}
+.btn .i{width:18px;height:18px}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;
+  border:0;background:transparent;color:var(--ink-2);cursor:pointer;transition:background-color .15s,color .15s}
+.icon-btn:hover{background:var(--sunken);color:var(--ink)}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--line-2);border-top-color:var(--brand);
+  animation:spin .8s linear infinite;flex:0 0 auto}
+.btn .spin{border-color:rgba(255,255,255,.4);border-top-color:currentColor}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* inputs */
+.input,.select{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;
+  background:var(--surface);transition:border-color .15s,box-shadow .15s}
+.input:focus,.select:focus{border-color:var(--brand);box-shadow:var(--ring);outline:none}
+.select{appearance:none;-webkit-appearance:none;padding-right:40px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B7B6B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:18px}
+
+/* chips — radio buttons underneath, so keyboard and screen readers work for free */
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{position:relative;display:inline-flex}
+.chip input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.chip span{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line-2);
+  border-radius:99px;background:var(--surface);font-size:14px;font-weight:600;
+  transition:background-color .15s,border-color .15s,color .15s}
+.chip:hover span{border-color:var(--brand)}
+.chip input:checked+span{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.chip input:focus-visible+span{box-shadow:var(--ring)}
+.dur-custom{width:96px!important}
+
+/* switch */
+.switch{position:relative;display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 8px;cursor:pointer;
+  border-radius:10px;font-size:14px;font-weight:600;color:var(--ink-2);-webkit-user-select:none;user-select:none}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.track{position:relative;width:44px;height:26px;border-radius:99px;background:var(--line-2);flex:0 0 auto;transition:background-color .2s}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.switch input:checked+.track{background:var(--live)}
+.switch input:checked+.track::after{transform:translateX(18px)}
+.switch input:focus-visible+.track{box-shadow:var(--ring)}
+.switch.wide{padding:0;color:var(--ink)}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:99px;
+  font-size:12px;font-weight:700;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.badge.live{background:var(--live-soft);color:var(--live)}
+.badge.scheduled{background:var(--sched-soft);color:var(--sched)}
+.badge.ended,.badge.hidden,.badge.unsupported{background:var(--mute-soft);color:var(--ink-2)}
+.tag{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:99px;font-size:12px;
+  font-weight:600;background:var(--brand-soft);color:var(--brand);white-space:nowrap}
+
+/* sign in */
+.auth{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
+.auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:20px;
+  box-shadow:var(--shadow);padding:30px 24px;display:grid;gap:18px}
+.auth-card h1{font-family:var(--serif);font-weight:600;font-size:30px;margin:10px 0 2px;letter-spacing:.01em}
+.brand-mark{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;flex:0 0 auto}
+.auth-card .brand-mark{width:52px;height:52px;border-radius:15px}
+.auth-card .brand-mark .i{width:26px;height:26px}
+.pw{position:relative}
+.pw .input{padding-right:52px}
+.pw .icon-btn{position:absolute;right:0;top:0}
+.form-err{color:var(--danger);font-size:14px;background:var(--danger-soft);padding:10px 12px;border-radius:10px}
+.boot-err{max-width:460px;margin:15vh auto;padding:0 16px;text-align:center}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1240px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px;min-height:64px}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto;min-width:0}
+.brand-text{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.wordmark{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:.01em}
+.brand-text small{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prop-select{width:auto;min-width:180px}
+@media (max-width:599px){.hide-sm{display:none!important}}
+
+.container{max-width:1240px;margin:0 auto;padding:20px 16px 120px}
+
+/* needs-attention banner */
+.attn{background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:var(--r);padding:4px 6px;margin:0 0 20px}
+.attn-row{display:flex;align-items:center;gap:12px;padding:12px 10px;flex-wrap:wrap}
+.attn-row+.attn-row{border-top:1px solid var(--warn-line)}
+.attn-row>.i{color:var(--warn)}
+.attn-text{flex:1 1 260px;min-width:0;font-size:15px}
+.attn-text b{font-weight:650}
+.attn-text span{display:block;font-size:13px;color:var(--ink-2);margin-top:2px}
+
+/* overview tiles (bento) */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:0 0 20px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);min-width:0}
+.tile-top{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13px;font-weight:600}
+.tile-top .i{width:17px;height:17px}
+.tile-val{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:6px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-sub{font-size:13px;color:var(--ink-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.warn{border-color:var(--warn-line);background:var(--warn-soft)}
+.tile.warn .tile-top .i{color:var(--warn)}
+.meter{height:6px;border-radius:99px;background:var(--sunken);overflow:hidden;margin-top:10px}
+.meter>i{display:block;height:100%;background:var(--brand);border-radius:99px}
+
+/* layout */
+.layout{display:grid;gap:20px;align-items:start}
+@media (min-width:1024px){.layout{grid-template-columns:minmax(0,1fr) 400px}.col-side{position:sticky;top:84px}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+.panel+.panel{margin-top:20px}
+.panel-h{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+.panel-h h2{font-size:17px;margin:0;font-weight:700}
+.count{font-size:13px;font-weight:700;color:var(--ink-2);background:var(--sunken);padding:2px 10px;border-radius:99px}
+.spacer{flex:1}
+
+/* upload */
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;border:2px dashed var(--line-2);border-radius:var(--r);
+  padding:26px 16px;text-align:center;background:var(--surface-2);cursor:pointer;transition:border-color .15s,background-color .15s}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+.drop .big{width:48px;height:48px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;margin-bottom:4px;transition:background-color .15s,color .15s}
+.drop .big .i{width:24px;height:24px}
+.drop.over .big,.drop:hover .big{background:var(--brand);color:var(--brand-ink)}
+.drop strong{font-size:16px}
+.drop .help{max-width:440px}
+.upload-opts{display:grid;gap:16px;margin-top:16px}
+@media (min-width:700px){.upload-opts{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}}
+.queue{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.queue:empty{display:none}
+.q{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px 8px 8px;
+  border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.q img,.q-ph{width:72px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;background:#000;display:grid;place-items:center;color:#8b7b6b}
+.q-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-state{font-size:13px;color:var(--ink-2)}
+.q.done .q-state,.q.done .q-ic{color:var(--live)}
+.q.err .q-state,.q.err .q-ic{color:var(--danger)}
+
+/* slide list */
+.slides{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.slide{display:grid;grid-template-columns:auto 136px minmax(0,1fr) auto;gap:14px;align-items:center;
+  padding:10px 12px 10px 6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  transition:box-shadow .15s,border-color .15s}
+.slide:hover{border-color:var(--line-2)}
+.slide.dragging{box-shadow:var(--shadow-lg);border-color:var(--brand);position:relative;z-index:2}
+.slide.dim .thumb{opacity:.45;filter:grayscale(.7)}
+.handle{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:8px;background:transparent;
+  color:var(--ink-2);cursor:grab;touch-action:none}
+.handle:hover{background:var(--sunken);color:var(--ink)}
+.handle:active{cursor:grabbing}
+.slide .thumb{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#000;display:block;cursor:pointer}
+.slide-main{min-width:0;display:grid;gap:6px;cursor:pointer}
+.slide-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.slide-title b{font-size:15px}
+.slide-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--ink-2)}
+.slide-meta span{display:inline-flex;align-items:center;gap:5px}
+.slide-meta .i{width:15px;height:15px}
+.slide-meta .heavy{color:var(--warn);font-weight:600}
+.actions{display:flex;align-items:center;gap:2px}
+@media (max-width:620px){
+  .slide{grid-template-columns:auto 104px minmax(0,1fr);gap:10px}
+  .actions{grid-column:1/-1;justify-content:space-between;border-top:1px solid var(--line);padding-top:6px;margin-left:54px}
+}
+.empty{text-align:center;padding:34px 16px;color:var(--ink-2);list-style:none}
+.empty .big{width:52px;height:52px;border-radius:50%;background:var(--sunken);display:grid;place-items:center;margin:0 auto 12px}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.skel{height:92px;border-radius:var(--r);list-style:none;
+  background:linear-gradient(90deg,var(--sunken),var(--surface-2),var(--sunken));background-size:200% 100%;animation:sh 1.2s ease-in-out infinite}
+.tile.skel{height:98px;padding:0;border:0}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* TV preview */
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 16px;padding:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:99px;border:1px solid var(--line-2);background:var(--surface);
+  font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:background-color .15s,color .15s,border-color .15s}
+.tab:hover{border-color:var(--ink-2);color:var(--ink)}
+.tab[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.screen{position:relative;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#0b0b0d;margin:6px;
+  box-shadow:0 0 0 7px #1b1712,0 0 0 8px var(--line-2),var(--shadow)}
+.screen iframe{position:absolute;top:0;left:0;width:1920px;height:1080px;border:0;transform-origin:0 0;pointer-events:none}
+.pv-lazy{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;border:0;
+  background:transparent;color:#d8ccbd;font-weight:600;cursor:pointer}
+.pv-lazy .i{width:34px;height:34px}
+.pv-lazy:hover{color:#fff}
+.screen-foot{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:20px;flex-wrap:wrap}
+.screen-cap{font-size:14px;color:var(--ink-2)}
+.screen-cap b{color:var(--ink)}
+
+/* editor — right-hand drawer on desktop, bottom sheet on phones */
+dialog.sheet{padding:0;border:0;background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg);
+  width:min(480px,100vw);max-width:100vw;height:100vh;height:100dvh;max-height:none;margin:0 0 0 auto}
+dialog.sheet[open]{display:flex;flex-direction:column}
+dialog.sheet::backdrop{background:rgba(20,14,8,.45)}
+@media (max-width:640px){dialog.sheet{width:100vw;height:auto;max-height:92vh;max-height:92dvh;margin:auto 0 0;border-radius:18px 18px 0 0}}
+.sheet-h{display:flex;align-items:center;gap:8px;padding:12px 12px 12px 20px;border-bottom:1px solid var(--line)}
+.sheet-h h3{margin:0;font-size:17px}
+.saved{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--live)}
+.saved .i{width:16px;height:16px}
+.sheet-b{flex:1;overflow:auto;padding:20px;display:grid;gap:24px;align-content:start}
+.ed-media img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#000;display:block}
+.ed-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.grid2{display:grid;gap:12px;grid-template-columns:1fr}
+@media (min-width:420px){.grid2{grid-template-columns:1fr 1fr}}
+.sched{display:grid;gap:14px;margin-top:6px;padding:14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.file-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;border-radius:12px;border:1px solid var(--line)}
+.file-card>div{flex:1 1 200px;min-width:0}
+.file-card b{display:block;font-size:14px}
+.file-card .warn-text{color:var(--warn);font-weight:600}
+.danger-zone{padding-top:18px;border-top:1px solid var(--line)}
+.confirm{display:grid;gap:12px;padding:14px;border-radius:12px;background:var(--danger-soft);border:1px solid var(--danger)}
+.confirm p{margin:0;font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* toasts */
+#toasts{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;
+  display:grid;gap:8px;width:min(520px,calc(100vw - 24px));pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:8px 6px 8px 16px;border-radius:12px;
+  background:var(--ink);color:var(--bg);box-shadow:var(--shadow-lg);font-size:14px;animation:tin .2s ease-out}
+.toast.error{background:var(--danger);color:var(--danger-ink)}
+.toast span{flex:1;padding:4px 0}
+.toast button{border:0;background:transparent;color:inherit;font-weight:700;cursor:pointer;min-height:36px;padding:0 12px;border-radius:8px}
+.toast button:hover{background:rgba(128,128,128,.22)}
+.toast .x{width:36px;padding:0;display:grid;place-items:center;opacity:.75}
+.toast .x .i{width:16px;height:16px}
+.toast.out{opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Compact controls are fine for a mouse; a finger needs the full 44px (skill: touch-target-size). */
+@media (pointer:coarse),(max-width:640px){.btn.sm,.tab{min-height:44px}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <!-- ===== sign in ===== -->
-  <div id="signin" class="card" style="margin-top:60px">
-    <h1>Signage Admin</h1>
-    <p class="hint">Sign in to manage TV content.</p>
-    <label for="email">Email</label>
-    <input id="email" type="email" autocomplete="username">
-    <label for="pw">Password</label>
-    <input id="pw" type="password" autocomplete="current-password">
-    <div style="height:14px"></div>
-    <button id="btnIn">Sign in</button>
+<!-- Icon sprite: SVG, one consistent set, 24px grid (skill: no emoji icons) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.1 4.1"/><path d="M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="m14 6 4 4"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m6 6 1 14h10l1-14"/></symbol>
+<symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+</defs></svg>
+
+<!-- ===== sign in ===== -->
+<main id="auth" class="auth" hidden>
+  <form id="signinForm" class="auth-card" novalidate>
+    <div>
+      <div class="brand-mark"><svg class="i" aria-hidden="true"><use href="#i-tv"/></svg></div>
+      <h1>Divino TV</h1>
+      <p class="help" style="margin:0">Sign in to manage what plays on the room TVs.</p>
+    </div>
+    <div class="field">
+      <label class="label" for="email">Email</label>
+      <input id="email" class="input" type="email" autocomplete="username" inputmode="email" required>
+    </div>
+    <div class="field">
+      <label class="label" for="pw">Password</label>
+      <div class="pw">
+        <input id="pw" class="input" type="password" autocomplete="current-password" required>
+        <button type="button" class="icon-btn" id="pwToggle" aria-label="Show password"><svg class="i" aria-hidden="true"><use href="#i-eye"/></svg></button>
+      </div>
+    </div>
+    <div class="form-err" id="signinErr" role="alert" hidden></div>
+    <button class="btn" id="btnIn" type="submit">Sign in</button>
+  </form>
+</main>
+
+<!-- ===== app ===== -->
+<div id="app" hidden>
+  <header class="topbar"><div class="topbar-in">
+    <div class="brand">
+      <div class="brand-mark"><svg class="i" aria-hidden="true"><use href="#i-tv"/></svg></div>
+      <div class="brand-text"><span class="wordmark">Divino TV</span><small id="propName"></small></div>
+    </div>
+    <select id="prop" class="select prop-select" aria-label="Property" hidden></select>
+    <a class="btn ghost sm hide-sm" id="openTv" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-external"/></svg>Open TV page</a>
+    <button class="icon-btn" id="btnOut" type="button" aria-label="Sign out" title="Sign out"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg></button>
+  </div></header>
+
+  <div class="container">
+    <section id="attention" class="attn" aria-label="Needs attention" hidden></section>
+    <section id="tiles" class="tiles" aria-label="Overview"></section>
+
+    <div class="layout">
+      <div class="col-main">
+        <section class="panel" aria-labelledby="upH">
+          <div class="panel-h"><h2 id="upH">Add slides</h2></div>
+          <div id="drop" class="drop" role="button" tabindex="0" aria-describedby="dropHelp">
+            <div class="big"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg></div>
+            <strong>Drop images here, or click to choose</strong>
+            <span class="help" id="dropHelp">JPEG, PNG or WebP. 1920 × 1080 looks best. You can add several at once — big images are shrunk automatically, so they load fast and don’t use up the data allowance.</span>
+          </div>
+          <input id="file" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+          <div class="upload-opts">
+            <div class="field">
+              <label class="label" for="upZone">Show on</label>
+              <select id="upZone" class="select"></select>
+              <span class="help">“All categories” means every room TV in this property.</span>
+            </div>
+            <fieldset class="field">
+              <legend class="label">Seconds on screen</legend>
+              <div class="chips" id="upDur"></div>
+            </fieldset>
+          </div>
+          <ul id="queue" class="queue" aria-live="polite"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="slH">
+          <div class="panel-h">
+            <h2 id="slH">Slides</h2><span class="count" id="slideCount">0</span>
+            <span class="spacer"></span>
+            <button class="btn ghost sm" id="btnExport" type="button"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>Export backup</button>
+          </div>
+          <p class="help" style="margin:-4px 0 14px">They play top to bottom. Drag the dotted handle to reorder. Switching a slide off hides it without deleting it.</p>
+          <ul id="slides" class="slides"></ul>
+        </section>
+      </div>
+
+      <aside class="col-side">
+        <section class="panel" aria-labelledby="pvH">
+          <div class="panel-h"><h2 id="pvH">What the TVs show</h2></div>
+          <div class="tabs" id="pvTabs" role="group" aria-label="Room category"></div>
+          <div class="screen" id="screen"></div>
+          <div class="screen-foot">
+            <span class="screen-cap" id="pvCap"></span>
+            <a class="btn quiet sm" id="pvOpen" target="_blank" rel="noopener">Open full size<svg class="i" aria-hidden="true"><use href="#i-external"/></svg></a>
+          </div>
+          <p class="help" style="margin:12px 0 0">This is the real TV page, not a mock-up. Changes you make show up here within a few seconds — the same as on the TVs.</p>
+        </section>
+      </aside>
+    </div>
   </div>
+</div>
 
-  <!-- ===== app ===== -->
-  <div id="app" hidden>
-    <div class="top">
-      <h1>Signage Admin</h1>
-      <button class="ghost" id="btnOut">Sign out</button>
+<!-- ===== slide editor ===== -->
+<dialog id="editor" class="sheet" aria-labelledby="edTitle">
+  <div class="sheet-h">
+    <h3 id="edTitle">Slide</h3>
+    <span class="saved" id="edSaved" hidden><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Saved</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" type="button" id="edClose" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="sheet-b">
+    <div class="ed-media">
+      <img id="edImg" alt="">
+      <div class="ed-status" id="edStatus"></div>
     </div>
 
-    <h2>Property</h2>
-    <div class="card">
-      <select id="prop"></select>
-      <div class="bar"><i id="useBar" style="width:0"></i></div>
-      <div class="hint" id="useTxt">&nbsp;</div>
-      <div class="note" id="useWarn" hidden></div>
+    <div class="field">
+      <label class="switch wide"><input type="checkbox" id="edActive"><span class="track"></span><span id="edActiveText">Showing on the TVs</span></label>
     </div>
 
-    <h2>Add slide</h2>
-    <div class="card">
-      <label for="file">Image or video file</label>
-      <input id="file" type="file" accept="image/*,video/mp4">
-      <div class="hint">1920&times;1080. Stills 300–500 KB. Video max 50 MB, no audio.</div>
-      <div class="note" id="fileWarn" hidden></div>
-      <div class="grid">
-        <div>
-          <label for="upZone">Category / Area</label>
-          <select id="upZone"></select>
+    <div class="field">
+      <label class="label" for="edZone">Show on</label>
+      <select id="edZone" class="select"></select>
+      <span class="help">“All categories” means every room TV in this property.</span>
+    </div>
+
+    <fieldset class="field">
+      <legend class="label">Seconds on screen</legend>
+      <div class="chips" id="edDur"></div>
+    </fieldset>
+
+    <div class="field">
+      <label class="switch wide"><input type="checkbox" id="edSchedOn"><span class="track"></span><span>Only show between certain dates</span></label>
+      <div class="sched" id="edSched" hidden>
+        <div class="row">
+          <button type="button" class="btn ghost sm" data-preset="0">Until end of today</button>
+          <button type="button" class="btn ghost sm" data-preset="7">For 7 days</button>
+          <button type="button" class="btn ghost sm" data-preset="30">For 30 days</button>
         </div>
-        <div>
-          <label for="upDur">Duration (seconds)</label>
-          <input id="upDur" type="number" min="1" max="600" value="8">
+        <div class="grid2">
+          <div class="field"><label class="label" for="edFrom">Show from</label><input id="edFrom" type="datetime-local" class="input"></div>
+          <div class="field"><label class="label" for="edUntil">Hide after</label><input id="edUntil" type="datetime-local" class="input"></div>
+        </div>
+        <span class="help" id="edTz"></span>
+      </div>
+    </div>
+
+    <div class="file-card">
+      <div id="edFile"></div>
+      <button type="button" class="btn ghost sm" id="edOptimize" hidden><svg class="i" aria-hidden="true"><use href="#i-zap"/></svg>Shrink image</button>
+    </div>
+
+    <div class="danger-zone">
+      <button type="button" class="btn danger-ghost" id="edDelete"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg>Delete slide</button>
+      <div class="confirm" id="edConfirm" hidden>
+        <p id="edConfirmText"></p>
+        <div class="row">
+          <button type="button" class="btn ghost sm" id="edCancelDel">Keep it</button>
+          <button type="button" class="btn danger sm" id="edDoDel">Delete permanently</button>
         </div>
       </div>
-      <div style="height:14px"></div>
-      <button id="btnUp" disabled>Upload and publish</button>
-    </div>
-
-    <h2>Slides <span class="pill" id="count"></span></h2>
-    <div id="list"></div>
-
-    <h2>Backup</h2>
-    <div class="card">
-      <p class="hint" style="margin-top:0">The free tier has no backups. This file is the
-        only one that exists. Export after every change.</p>
-      <button class="ghost" id="btnExport">Export everything to JSON</button>
     </div>
   </div>
+</dialog>
 
-</div>
-<div id="status"></div>
+<div id="toasts"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* Signage admin (brief v2.1 §3.3).
-   Runs on Samuel's laptop or phone in a modern browser. The TV app's constraints do
-   NOT apply here (§0.2) — but a framework and a build step buy nothing for one screen
-   with a list and a form, so this is a single static file with no build step.
-   A CDN is acceptable here and forbidden on the TV: if this fails to load the operator
-   retries, whereas a TV would go blank (§0.2 failure cost). */
+/* Signage admin (brief v2.1 §3.3), redesigned 2026-09-26.
+   Runs on a laptop or phone in a modern browser. The TV app's constraints do NOT apply
+   here (§0.2) — but a framework and a build step still buy nothing for one screen, so this
+   stays a single static file. A CDN is fine here and forbidden on the TV: if this fails to
+   load the operator retries, whereas a TV would go blank (§0.2 failure cost). */
 
 /* ================= CONFIG ================= */
 var SUPABASE_URL  = 'https://lbtgbxexejvjqhmvpygm.supabase.co';
 var SUPABASE_ANON = 'sb_publishable_KnH-IbL0AMBVtIpPw-MfLA_qbUcEPzt';
 /* ========================================== */
 
-var BUCKET      = 'signage';
-var MAX_BYTES   = 50 * 1024 * 1024;        /* §2.9 hard limit, cannot be raised */
-var CACHE_CTL   = '31536000';              /* §2.9 — one year, unchangeable after upload */
-var QUOTA_BYTES = 1024 * 1024 * 1024;      /* free tier storage ceiling */
-/* ponytail: placeholder until G3 runs with real numbers. G3 measures whether the TV's
-   cache holds a property's payload overnight; until then this is a guess, not a finding.
-   Set it from the G3 result and delete this comment. */
-var WARN_BYTES  = 150 * 1024 * 1024;
+const BUCKET         = 'signage';
+const MAX_BYTES      = 50 * 1024 * 1024;   /* §2.9 hard limit, cannot be raised on free tier */
+const CACHE_CTL      = '31536000';         /* §2.9 — one year, unchangeable after upload */
+const QUOTA_BYTES    = 1024 * 1024 * 1024; /* free tier storage ceiling */
+/* Auto-shrink target. §2.9 says 300–500 KB per still; 480 KB leaves headroom. Measured on
+   the first three Divino slides: 3.59 MB per rotation became 1.27 MB, and the 22-TV egress
+   projection fell from ~2.6 GB to ~1.2 GB of a 5 GB monthly cap. */
+const TARGET_BYTES   = 480 * 1024;
+const OVERSIZE_BYTES = 520 * 1024;         /* flag for "Shrink" — a little over target, so 501 KB doesn't nag */
+const MAX_EDGE       = 1920;               /* §2.9 longest edge */
+const BACKUP_STALE_DAYS = 7;
+/* Video is off until M8. The TVs skip video rows, and serving video from Supabase Storage
+   cost 49.96 GB in one night during gate run 2 (docs/GATES.md). Uploading one would only
+   create a slide that never appears. Flip this when video has somewhere safe to live. */
+const ALLOW_VIDEO    = false;
+const DURATIONS      = [5, 8, 10, 15, 20];
+/* The TV page sits one level up. Resolving that can throw (e.g. when the page is opened
+   from a data: URL), and a throw at this level would blank the whole admin — so fall back
+   to the live address rather than let a convenience take the page down. */
+const TV_URL = (() => {
+  try { return new URL('../index.html', location.href).href; }
+  catch (e){ return 'https://divinotv.github.io/signage/index.html'; }
+})();
+const DATE_FMT       = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-var $  = function(id){ return document.getElementById(id); };
+const $ = (id) => document.getElementById(id);
 
-var zones  = [];      /* [{property, slug, label, sort_order}] */
-var assets = [];      /* current property's rows, in sort_order */
-var objects = [];     /* current property's storage objects */
-var pickedFile = null;
-
-/* ---------- status line ---------- */
-var stTimer = null;
-function status(msg, kind){
-  var el = $('status');
-  el.textContent = msg;
-  el.className = kind || '';
-  el.style.display = msg ? 'block' : 'none';
-  clearTimeout(stTimer);
-  if (msg && kind !== 'err') stTimer = setTimeout(function(){ status(''); }, 4000);
+if (!window.supabase){
+  document.body.innerHTML = '<div class="boot-err"><h2>Can’t load the admin panel</h2><p class="help">A required script didn’t download. Check your internet connection and reload the page.</p></div>';
+  throw new Error('supabase-js failed to load');
 }
-function fail(where, err){
-  console.error(where, err);
-  status(where + ': ' + ((err && err.message) || String(err)), 'err');
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const state = {
+  zones: [], properties: [], property: null,
+  assets: [],      /* current property's rows, in sort_order */
+  objects: [],     /* current property's storage objects (with metadata.size) */
+  previewZone: null
+};
+
+/* ---------- small helpers ---------- */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function icon(name){ return '<svg class="i" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
+function fmtBytes(b){
+  if (b == null) return '—';
+  if (b < 1048576) return Math.max(1, Math.round(b / 1024)) + ' KB';
+  return (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB';
 }
-function mb(bytes){ return (bytes / 1048576).toFixed(1) + ' MB'; }
-function esc(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
-                  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function fmtDate(ms){ return DATE_FMT.format(new Date(ms)); }
+function relDays(ms){
+  const d = Math.floor((Date.now() - ms) / 86400000);
+  return d <= 0 ? 'Today' : d === 1 ? 'Yesterday' : d + ' days ago';
+}
+function prettySlug(s){ return String(s || '').split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); }
+function plural(n, one, many){ return n + ' ' + (n === 1 ? one : many); }
+/* Browser storage is a per-device convenience only (remembered duration, property, last
+   backup time). It can be empty or throw in private mode, so nothing depends on it. */
+function lsGet(k){ try { return localStorage.getItem(k); } catch (e){ return null; } }
+function lsSet(k, v){ try { localStorage.setItem(k, String(v)); } catch (e){} }
+function friendly(e){
+  const m = (e && (e.message || e.error_description || e.error)) || String(e || '');
+  if (/failed to fetch|network|load failed/i.test(m)) return 'Connection problem — check the internet and try again.';
+  if (/payload too large|exceeded|too large/i.test(m)) return 'The file is too large.';
+  if (/jwt|not authorized|permission|row-level/i.test(m)) return 'Your session has expired. Sign in again.';
+  return m || 'Something went wrong.';
+}
+function zonesHere(){ return state.zones.filter((z) => z.property === state.property); }
+function zoneLabel(slug){
+  if (!slug) return 'All categories';
+  const z = zonesHere().find((x) => x.slug === slug);
+  return z ? z.label : prettySlug(slug);
+}
+function current(r){ return r && (state.assets.find((x) => x.id === r.id) || r); }
+
+/* Storage path for a media_url, or null when the file lives outside our bucket. That case
+   is real: media_url stays absolute (FP4) so media can move host with no TV change, and a
+   row pointing elsewhere must never make us delete anything. */
+function bucketPath(url){
+  const marker = '/object/public/' + BUCKET + '/';
+  const i = String(url || '').indexOf(marker);
+  return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
+}
+function sizeOf(r){
+  const p = bucketPath(r.media_url);
+  if (!p) return null;
+  const name = p.split('/').pop();
+  const o = state.objects.find((x) => x.name === name);
+  return o ? o.metadata.size : null;
+}
+
+/* What a TV actually does with a row, as opposed to what the row says. The old admin showed
+   "LIVE" for a slide whose schedule had ended — while the TVs had already dropped it. This
+   mirrors the TV's usable() filter so the two can't disagree. */
+function statusOf(r){
+  if (r.media_type === 'video') return { key: 'unsupported', label: 'Not shown', note: 'Video isn’t supported on the TVs yet' };
+  if (!r.is_active) return { key: 'hidden', label: 'Hidden', note: '' };
+  const now = Date.now();
+  const s = r.starts_at ? Date.parse(r.starts_at) : NaN;
+  const e = r.ends_at ? Date.parse(r.ends_at) : NaN;
+  if (!isNaN(s) && s > now) return { key: 'scheduled', label: 'Scheduled', note: 'Starts ' + fmtDate(s) };
+  if (!isNaN(e) && e < now) return { key: 'ended', label: 'Ended', note: 'Ended ' + fmtDate(e) };
+  return { key: 'live', label: 'Live', note: !isNaN(e) ? 'Until ' + fmtDate(e) : '' };
+}
+
+/* ---------- toasts ---------- */
+function toast(msg, opts){
+  opts = opts || {};
+  const el = document.createElement('div');
+  el.className = 'toast' + (opts.type === 'error' ? ' error' : '');
+  el.setAttribute('role', opts.type === 'error' ? 'alert' : 'status');
+  const span = document.createElement('span'); span.textContent = msg; el.appendChild(span);
+  let timer = null;
+  const dismiss = () => { clearTimeout(timer); el.classList.add('out'); setTimeout(() => el.remove(), 220); };
+  if (opts.action){
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = opts.action.label;
+    b.onclick = () => { dismiss(); opts.action.run(); };
+    el.appendChild(b);
+  }
+  const x = document.createElement('button'); x.type = 'button'; x.className = 'x';
+  x.setAttribute('aria-label', 'Dismiss'); x.innerHTML = icon('x'); x.onclick = dismiss;
+  el.appendChild(x);
+  $('toasts').appendChild(el);
+  timer = setTimeout(dismiss, opts.timeout || (opts.type === 'error' ? 8000 : 4000));
+  return dismiss;
 }
 
 /* ---------- auth ---------- */
-$('btnIn').onclick = async function(){
-  var btn = this; btn.disabled = true; status('Signing in…');
-  var r = await db.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
-  btn.disabled = false;
-  if (r.error) return fail('Sign in failed', r.error);
-  status('');
-};
-$('btnOut').onclick = async function(){ await db.auth.signOut(); location.reload(); };
+$('signinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('btnIn'), err = $('signinErr');
+  err.hidden = true;
+  btn.disabled = true; btn.innerHTML = '<span class="spin" aria-hidden="true"></span>Signing in…';
+  const { error } = await db.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+  btn.disabled = false; btn.textContent = 'Sign in';
+  if (error){
+    err.textContent = /invalid login/i.test(error.message)
+      ? 'That email and password don’t match. Check them and try again.'
+      : friendly(error);
+    err.hidden = false;
+    $('pw').select();
+  }
+});
+$('pwToggle').addEventListener('click', () => {
+  const i = $('pw'), show = i.type === 'password';
+  i.type = show ? 'text' : 'password';
+  $('pwToggle').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  $('pwToggle').innerHTML = icon(show ? 'eye-off' : 'eye');
+});
+$('btnOut').addEventListener('click', async () => { await db.auth.signOut(); location.reload(); });
 
-db.auth.onAuthStateChange(function(_e, session){ session ? start() : showSignIn(); });
-db.auth.getSession().then(function(r){ r.data.session ? start() : showSignIn(); });
+function showSignIn(){ $('auth').hidden = false; $('app').hidden = true; setTimeout(() => $('email').focus(), 50); }
+db.auth.onAuthStateChange((_e, session) => { session ? start() : showSignIn(); });
+db.auth.getSession().then((r) => { r.data.session ? start() : showSignIn(); });
 
-function showSignIn(){ $('signin').hidden = false; $('app').hidden = true; }
-
-var started = false;
+let started = false;
 async function start(){
   if (started) return;
   started = true;
-  $('signin').hidden = true;
-  $('app').hidden = false;
-
-  var r = await db.from('zones').select('*').order('property').order('sort_order');
-  if (r.error) return fail('Could not load categories', r.error);
-  zones = r.data || [];
-  if (!zones.length) return status('The zones table is empty — run db/seed-zones.sql first.', 'err');
-
-  var props = [], seen = {};
-  zones.forEach(function(z){ if (!seen[z.property]){ seen[z.property] = 1; props.push(z.property); } });
-  $('prop').innerHTML = props.map(function(p){
-    return '<option value="' + esc(p) + '">' + esc(p) + '</option>';
-  }).join('');
-  $('prop').onchange = loadProperty;
-  loadProperty();
+  $('auth').hidden = true; $('app').hidden = false;
+  renderSkeleton();
+  const { data, error } = await db.from('zones').select('*').order('property').order('sort_order');
+  if (error){ toast('Couldn’t load room categories: ' + friendly(error), { type: 'error' }); return; }
+  state.zones = data || [];
+  state.properties = [...new Set(state.zones.map((z) => z.property))];
+  if (!state.properties.length){
+    $('slides').innerHTML = '<li class="empty"><b>No properties set up yet</b>Run db/seed-zones.sql in Supabase, then reload.</li>';
+    $('tiles').innerHTML = '';
+    return;
+  }
+  const saved = lsGet('signage.property');
+  state.property = state.properties.includes(saved) ? saved : state.properties[0];
+  initUpload();
+  initPreview();
+  renderPropertyPicker();
+  await onPropertyChanged();
 }
 
-/* ---------- load one property ---------- */
-function currentProperty(){ return $('prop').value; }
-
-function fillZoneSelect(sel, chosen){
-  var opts = ['<option value="">All categories</option>'];
-  zones.filter(function(z){ return z.property === currentProperty(); })
-       .forEach(function(z){
-    opts.push('<option value="' + esc(z.slug) + '"' +
-              (z.slug === chosen ? ' selected' : '') + '>' + esc(z.label) + '</option>');
-  });
-  sel.innerHTML = opts.join('');
+/* ---------- property ---------- */
+function renderPropertyPicker(){
+  const one = state.properties.length === 1;
+  $('prop').hidden = one;
+  $('propName').hidden = !one;
+  $('propName').textContent = prettySlug(state.property);
+  if (!one){
+    $('prop').innerHTML = state.properties.map((p) =>
+      '<option value="' + esc(p) + '"' + (p === state.property ? ' selected' : '') + '>' + esc(prettySlug(p)) + '</option>').join('');
+  }
 }
-
-async function loadProperty(){
+$('prop').addEventListener('change', () => {
+  state.property = $('prop').value;
+  lsSet('signage.property', state.property);
+  onPropertyChanged();
+});
+async function onPropertyChanged(){
   fillZoneSelect($('upZone'), null);
-  status('Loading…');
-
-  var a = await db.from('assets').select('*')
-            .eq('property', currentProperty()).order('sort_order');
-  if (a.error) return fail('Could not load slides', a.error);
-  assets = a.data || [];
-
-  var s = await db.storage.from(BUCKET).list(currentProperty(), { limit: 1000 });
-  objects = s.error ? [] : (s.data || []);
-  if (s.error) console.warn('storage list', s.error);
-
-  renderUsage();
-  renderList();
-  status('');
+  renderPreviewTabs();
+  renderPreviewLinks();
+  if (previewLoaded) loadPreview();
+  await loadProperty();
 }
 
-function renderUsage(){
-  var used = objects.reduce(function(n, o){
-    return n + ((o.metadata && o.metadata.size) || 0);
-  }, 0);
-  $('useBar').style.width = Math.min(100, used / QUOTA_BYTES * 100) + '%';
-  $('useTxt').textContent = objects.length + ' file(s), ' + mb(used) +
-    ' in this property — free tier ceiling is 1 GB across all six.';
-  var warn = $('useWarn');
-  if (used > WARN_BYTES){
-    warn.hidden = false;
-    warn.textContent = 'This property is carrying ' + mb(used) +
-      '. Large payloads are what gate G3 tests — check weekly egress in the Supabase dashboard.';
-  } else warn.hidden = true;
+/* ---------- data ---------- */
+async function loadProperty(opts){
+  if (!(opts && opts.quiet)) renderSkeleton();
+  const [a, s] = await Promise.all([
+    db.from('assets').select('*').eq('property', state.property).order('sort_order'),
+    db.storage.from(BUCKET).list(state.property, { limit: 1000 })
+  ]);
+  if (a.error){ toast('Couldn’t load slides: ' + friendly(a.error), { type: 'error' }); return; }
+  state.assets = a.data || [];
+  state.objects = s.error ? [] : (s.data || []).filter((o) => o.name && o.name.charAt(0) !== '.' && o.metadata);
+  if (edRow){
+    edRow = state.assets.find((x) => x.id === edRow.id) || null;
+    if (!edRow && $('editor').open) $('editor').close();
+  }
+  renderAll();
+}
+function renderAll(){ renderTiles(); renderAttention(); renderList(); renderPreviewCaption(); refreshEditor(); }
+
+/* ---------- overview tiles ---------- */
+function tile(ic, label, val, sub, extra, cls){
+  return '<div class="tile ' + (cls || '') + '"><div class="tile-top">' + icon(ic) + esc(label) + '</div>' +
+    '<div class="tile-val">' + esc(val) + '</div><div class="tile-sub">' + esc(sub) + '</div>' + (extra || '') + '</div>';
+}
+function lastBackup(){ return Number(lsGet('signage.lastExport')) || 0; }
+function backupStale(){ const t = lastBackup(); return !t || Date.now() - t > BACKUP_STALE_DAYS * 86400000; }
+function renderTiles(){
+  const st = state.assets.map((r) => ({ r, s: statusOf(r) }));
+  const live = st.filter((x) => x.s.key === 'live').length;
+  const sched = st.filter((x) => x.s.key === 'scheduled').sort((x, y) => Date.parse(x.r.starts_at) - Date.parse(y.r.starts_at));
+  const off = st.filter((x) => x.s.key === 'hidden' || x.s.key === 'ended' || x.s.key === 'unsupported').length;
+  const used = state.objects.reduce((n, o) => n + (o.metadata.size || 0), 0);
+  const pct = Math.max(1, Math.min(100, used / QUOTA_BYTES * 100)).toFixed(1);
+  const last = lastBackup();
+  $('tiles').innerHTML =
+    tile('eye', 'Live now', live, live === 1 ? 'slide on the TVs' : 'slides on the TVs') +
+    tile('clock', 'Scheduled', sched.length, sched.length ? 'Next: ' + fmtDate(Date.parse(sched[0].r.starts_at)) : 'Nothing planned') +
+    tile('eye-off', 'Not showing', off, 'hidden or ended') +
+    tile('database', 'Storage', fmtBytes(used), 'of 1 GB on the free plan', '<div class="meter"><i style="width:' + pct + '%"></i></div>') +
+    tile('shield', 'Last backup', last ? relDays(last) : 'Never', 'from this device', '', backupStale() ? 'warn' : '');
+}
+
+/* ---------- needs attention ---------- */
+function oversized(){
+  return state.assets.filter((r) => r.media_type === 'image' && bucketPath(r.media_url) && (sizeOf(r) || 0) > OVERSIZE_BYTES);
+}
+function orphans(){
+  const used = new Set(state.assets.map((r) => (bucketPath(r.media_url) || '').split('/').pop()));
+  return state.objects.filter((o) => !used.has(o.name));
+}
+function attnRow(ic, text, action){
+  return '<div class="attn-row">' + icon(ic) + '<div class="attn-text">' + text + '</div>' + (action || '') + '</div>';
+}
+function renderAttention(){
+  const rows = [];
+  const big = oversized();
+  if (big.length){
+    const total = big.reduce((n, r) => n + sizeOf(r), 0);
+    rows.push(attnRow('zap',
+      '<b>' + (big.length === 1 ? '1 image is larger than it needs to be' : big.length + ' images are larger than they need to be') + '</b>' +
+      '<span>' + fmtBytes(total) + ' in total. Shrinking to about 450 KB each keeps the monthly data allowance safe, and looks the same on the TV.</span>',
+      '<button class="btn sm" type="button" data-attn="optimize">' + icon('zap') + (big.length === 1 ? 'Shrink it' : 'Shrink all ' + big.length) + '</button>'));
+  }
+  const orph = orphans();
+  if (orph.length){
+    const t = orph.reduce((n, o) => n + o.metadata.size, 0);
+    rows.push(attnRow('trash',
+      '<b>' + plural(orph.length, 'unused file', 'unused files') + ' in storage</b><span>' + fmtBytes(t) + ' that no slide uses.</span>',
+      '<button class="btn sm ghost" type="button" data-attn="cleanup">Delete unused</button>'));
+  }
+  const vids = state.assets.filter((r) => r.media_type === 'video');
+  if (vids.length){
+    rows.push(attnRow('alert',
+      '<b>' + plural(vids.length, 'video slide won’t', 'video slides won’t') + ' appear on the TVs</b><span>Video isn’t supported on the TVs yet, so they skip it.</span>', ''));
+  }
+  if (state.assets.length && backupStale()){
+    const last = lastBackup();
+    rows.push(attnRow('shield',
+      '<b>' + (last ? 'Last backup was ' + relDays(last).toLowerCase() : 'No backup from this device yet') + '</b>' +
+      '<span>The free plan keeps no backups. The exported file is the only copy of your slide list.</span>',
+      '<button class="btn sm ghost" type="button" data-attn="export">' + icon('download') + 'Export now</button>'));
+  }
+  $('attention').innerHTML = rows.join('');
+  $('attention').hidden = !rows.length;
+}
+$('attention').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-attn]');
+  if (!b) return;
+  const act = b.dataset.attn;
+  if (act === 'optimize') return optimizeMany(oversized());
+  if (act === 'export') return exportBackup();
+  if (act === 'cleanup'){
+    /* Two taps, not a dialog: irreversible, but small and clearly labelled. */
+    if (!b.dataset.armed){
+      b.dataset.armed = '1'; b.className = 'btn sm danger'; b.textContent = 'Tap again to delete';
+      setTimeout(() => { if (b.isConnected){ delete b.dataset.armed; b.className = 'btn sm ghost'; b.textContent = 'Delete unused'; } }, 4000);
+      return;
+    }
+    return cleanupOrphans();
+  }
+});
+async function cleanupOrphans(){
+  /* A file uploaded a moment ago has no row yet, and would look exactly like an orphan.
+     The file list is a snapshot taken before any upload starts, so this is safe today by
+     ordering alone — that is not something to rely on for an irreversible delete. */
+  if (uploading || optimizing){ toast('Wait for the current upload to finish, then try again.'); return; }
+  const orph = orphans();
+  if (!orph.length) return;
+  const { error } = await db.storage.from(BUCKET).remove(orph.map((o) => state.property + '/' + o.name));
+  if (error) toast('Couldn’t delete the unused files: ' + friendly(error), { type: 'error' });
+  else toast(plural(orph.length, 'unused file', 'unused files') + ' deleted — ' + fmtBytes(orph.reduce((n, o) => n + o.metadata.size, 0)) + ' freed.');
+  loadProperty({ quiet: true });
 }
 
 /* ---------- slide list ---------- */
+function renderSkeleton(){
+  $('tiles').innerHTML = '<div class="tile skel"></div>'.repeat(5);
+  $('slides').innerHTML = '<li class="skel"></li>'.repeat(3);
+}
+function renderList(){
+  const list = $('slides');
+  $('slideCount').textContent = state.assets.length;
+  if (!state.assets.length){
+    list.innerHTML = '<li class="empty"><div class="big">' + icon('image') + '</div><b>No slides yet</b>' +
+      'Drop an image above to put your first slide on the TVs. Until then, they show the offline welcome screen.</li>';
+    return;
+  }
+  list.innerHTML = state.assets.map((r, i) => {
+    const s = statusOf(r), size = sizeOf(r), n = i + 1;
+    const dim = s.key === 'hidden' || s.key === 'ended' || s.key === 'unsupported';
+    const thumb = r.media_type === 'video'
+      ? '<video class="thumb" src="' + esc(r.media_url) + '" muted playsinline preload="metadata"></video>'
+      : '<img class="thumb" src="' + esc(r.media_url) + '" alt="Slide ' + n + '" loading="lazy" decoding="async">';
+    return '<li class="slide' + (dim ? ' dim' : '') + '" data-id="' + esc(r.id) + '">' +
+      '<button class="handle" type="button" aria-label="Move slide ' + n + '. Drag, or press the up and down arrow keys.">' + icon('grip') + '</button>' +
+      thumb +
+      '<div class="slide-main" data-open>' +
+        '<div class="slide-title"><b>Slide ' + n + '</b><span class="badge ' + s.key + '">' + esc(s.label) + '</span>' +
+          '<span class="tag">' + esc(zoneLabel(r.zone)) + '</span></div>' +
+        '<div class="slide-meta">' +
+          '<span>' + icon('clock') + Number(r.duration_seconds) + 's</span>' +
+          (size != null ? '<span class="' + (size > OVERSIZE_BYTES ? 'heavy' : '') + '">' + icon('image') + fmtBytes(size) + '</span>' : '') +
+          (s.note ? '<span>' + icon('calendar') + esc(s.note) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="actions">' +
+        '<label class="switch" title="' + (r.is_active ? 'Showing on the TVs' : 'Hidden from the TVs') + '">' +
+          '<input type="checkbox" role="switch" data-act="toggle"' + (r.is_active ? ' checked' : '') + ' aria-label="Show slide ' + n + ' on the TVs">' +
+          '<span class="track"></span>' + (r.is_active ? 'On' : 'Off') +
+        '</label>' +
+        '<button class="icon-btn" type="button" data-act="edit" aria-label="Edit slide ' + n + '">' + icon('pencil') + '</button>' +
+      '</div>' +
+    '</li>';
+  }).join('');
+}
+function rowOf(el){
+  const li = el.closest('[data-id]');
+  return li ? state.assets.find((r) => r.id === li.dataset.id) : null;
+}
+$('slides').addEventListener('change', (e) => {
+  if (e.target.dataset.act !== 'toggle') return;
+  const r = rowOf(e.target);
+  if (r) setActive(r, e.target.checked);
+});
+$('slides').addEventListener('click', (e) => {
+  if (e.target.closest('[data-act=edit], .thumb, [data-open]')){
+    const r = rowOf(e.target);
+    if (r) openEditor(r);
+  }
+});
+
+/* Reorder with the keyboard: focus a handle, press up/down. */
+$('slides').addEventListener('keydown', (e) => {
+  const h = e.target.closest('.handle');
+  if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+  e.preventDefault();
+  const r = rowOf(h), i = state.assets.indexOf(r), j = i + (e.key === 'ArrowUp' ? -1 : 1);
+  if (j < 0 || j >= state.assets.length) return;
+  const order = state.assets.slice();
+  order.splice(i, 1); order.splice(j, 0, r);
+  saveOrder(order, r.id);
+});
+
+/* Reorder by dragging. Pointer events rather than HTML5 drag-and-drop, because the latter
+   does not work on phones and G6 requires the whole update cycle to work from one. */
+$('slides').addEventListener('pointerdown', (e) => {
+  const h = e.target.closest('.handle');
+  if (!h || e.button > 0) return;
+  const item = h.closest('.slide'), list = $('slides');
+  e.preventDefault();
+  h.setPointerCapture(e.pointerId);
+  item.classList.add('dragging');
+  let moved = false;
+  const onMove = (ev) => {
+    let next = null;
+    for (const el of list.querySelectorAll('.slide:not(.dragging)')){
+      const b = el.getBoundingClientRect();
+      if (ev.clientY < b.top + b.height / 2){ next = el; break; }
+    }
+    if (next !== item.nextElementSibling){ list.insertBefore(item, next); moved = true; }
+  };
+  const onUp = () => {
+    h.removeEventListener('pointermove', onMove);
+    h.removeEventListener('pointerup', onUp);
+    h.removeEventListener('pointercancel', onUp);
+    item.classList.remove('dragging');
+    if (moved){
+      const ids = [...list.querySelectorAll('.slide')].map((el) => el.dataset.id);
+      saveOrder(ids.map((id) => state.assets.find((r) => r.id === id)).filter(Boolean));
+    }
+  };
+  h.addEventListener('pointermove', onMove);
+  h.addEventListener('pointerup', onUp);
+  h.addEventListener('pointercancel', onUp);
+});
+
+/* Rewrites sort_order across the whole list, so it also repairs duplicates. Optimistic:
+   the list moves immediately and the writes follow. */
+async function saveOrder(order, focusId){
+  const changed = [];
+  order.forEach((r, k) => { if (r.sort_order !== k){ r.sort_order = k; changed.push(r); } });
+  state.assets = order;
+  renderList(); renderPreviewCaption();
+  if (focusId){
+    const h = document.querySelector('[data-id="' + CSS.escape(focusId) + '"] .handle');
+    if (h) h.focus();
+  }
+  if (!changed.length) return;
+  for (const r of changed){
+    const { error } = await db.from('assets').update({ sort_order: r.sort_order }).eq('id', r.id);
+    if (error){ toast('Couldn’t save the new order: ' + friendly(error), { type: 'error' }); return loadProperty({ quiet: true }); }
+  }
+  toast('Order saved. TVs update within seconds.');
+}
+
+/* Optimistic single-row update, rolled back on failure. */
+async function patch(r, fields){
+  r = current(r);
+  const before = {};
+  for (const k in fields) before[k] = r[k];
+  Object.assign(r, fields);
+  renderAll();
+  const { error } = await db.from('assets').update(fields).eq('id', r.id);
+  if (error){
+    Object.assign(r, before);
+    renderAll();
+    toast('Couldn’t save: ' + friendly(error), { type: 'error' });
+    return false;
+  }
+  return true;
+}
+async function setActive(r, on, offerUndo){
+  if (!(await patch(r, { is_active: on }))) return;
+  if (offerUndo === false) return;
+  toast(on ? 'Slide is showing on the TVs again.' : 'Slide hidden from the TVs.', {
+    action: { label: 'Undo', run: () => setActive(r, !on, false) },
+    timeout: 7000
+  });
+}
+
+/* ---------- editor ---------- */
+let edRow = null, edDims = null, savedTimer = null;
+function flashSaved(){
+  $('edSaved').hidden = false;
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { $('edSaved').hidden = true; }, 1600);
+}
+async function savePatch(fields){ if (edRow && await patch(edRow, fields)) flashSaved(); }
+
+function fillZoneSelect(sel, chosen){
+  sel.innerHTML = '<option value="">All categories</option>' + zonesHere().map((z) =>
+    '<option value="' + esc(z.slug) + '"' + (z.slug === chosen ? ' selected' : '') + '>' + esc(z.label) + '</option>').join('');
+}
+function clampDur(v){ return Math.min(600, Math.max(1, Math.round(Number(v)) || 8)); }
+function durationPicker(box, name, value, onChange){
+  const preset = DURATIONS.includes(value);
+  box.innerHTML = DURATIONS.map((d) =>
+      '<label class="chip"><input type="radio" name="' + name + '" value="' + d + '"' + (d === value ? ' checked' : '') + '><span>' + d + 's</span></label>').join('') +
+    '<label class="chip"><input type="radio" name="' + name + '" value="custom"' + (preset ? '' : ' checked') + '><span>Other</span></label>' +
+    '<input class="input dur-custom" type="number" min="1" max="600" inputmode="numeric" aria-label="Seconds on screen"' +
+      (preset ? ' hidden' : ' value="' + value + '"') + '>';
+  const custom = box.querySelector('.dur-custom');
+  box.onchange = (e) => {
+    if (e.target.type === 'radio'){
+      if (e.target.value === 'custom'){ custom.hidden = false; custom.focus(); if (custom.value) onChange(clampDur(custom.value)); }
+      else { custom.hidden = true; onChange(Number(e.target.value)); }
+    } else if (e.target === custom && custom.value){
+      custom.value = clampDur(custom.value);
+      onChange(Number(custom.value));
+    }
+  };
+}
 function toLocalInput(iso){
   if (!iso) return '';
-  var d = new Date(iso);
+  const d = new Date(iso);
   if (isNaN(d)) return '';
-  var p = function(n){ return (n < 10 ? '0' : '') + n; };
-  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) +
-         'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  const p = (n) => (n < 10 ? '0' : '') + n;
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 function fromLocalInput(v){ return v ? new Date(v).toISOString() : null; }
 
-function renderList(){
-  $('count').textContent = assets.length + ' total';
-  if (!assets.length){
-    $('list').innerHTML = '<div class="card"><span class="hint">No slides yet. ' +
-      'A TV pointed at this property will show its offline slide.</span></div>';
+function openEditor(r){
+  r = current(r);
+  if (!r) return;
+  edRow = r; edDims = null;
+  $('edImg').onload = () => { edDims = [$('edImg').naturalWidth, $('edImg').naturalHeight]; renderFileInfo(); };
+  $('edImg').src = r.media_url;
+  fillZoneSelect($('edZone'), r.zone);
+  durationPicker($('edDur'), 'edDur', Number(r.duration_seconds), (v) => savePatch({ duration_seconds: v }));
+  const sched = !!(r.starts_at || r.ends_at);
+  $('edSchedOn').checked = sched;
+  $('edSched').hidden = !sched;
+  $('edFrom').value = toLocalInput(r.starts_at);
+  $('edUntil').value = toLocalInput(r.ends_at);
+  $('edTz').textContent = 'Times use this device’s timezone (' + Intl.DateTimeFormat().resolvedOptions().timeZone + ').';
+  $('edConfirm').hidden = true; $('edDelete').hidden = false;
+  $('edSaved').hidden = true;
+  /* Open first: refreshEditor deliberately does nothing while the dialog is closed, so
+     calling it before showModal left the title and status blank until the first edit. */
+  $('editor').showModal();
+  refreshEditor();
+}
+function refreshEditor(){
+  if (!edRow || !$('editor').open) return;
+  const r = edRow, s = statusOf(r), n = state.assets.indexOf(r) + 1;
+  $('edTitle').textContent = 'Slide ' + (n || '');
+  if ($('edImg').getAttribute('src') !== r.media_url) $('edImg').src = r.media_url;
+  $('edImg').alt = 'Slide ' + n;
+  $('edStatus').innerHTML = '<span class="badge ' + s.key + '">' + esc(s.label) + '</span><span class="tag">' + esc(zoneLabel(r.zone)) + '</span>' +
+    (s.note ? '<span class="help">' + esc(s.note) + '</span>' : '');
+  $('edActive').checked = !!r.is_active;
+  $('edActiveText').textContent = r.is_active ? 'Showing on the TVs' : 'Hidden from the TVs';
+  renderFileInfo();
+}
+function renderFileInfo(){
+  if (!edRow) return;
+  const r = edRow, size = sizeOf(r), heavy = size != null && size > OVERSIZE_BYTES && r.media_type === 'image';
+  const parts = [];
+  if (edDims) parts.push(edDims[0] + ' × ' + edDims[1]);
+  if (size != null) parts.push(fmtBytes(size));
+  let note = '';
+  if (edDims && Math.abs(edDims[0] / edDims[1] - 16 / 9) > 0.02) note = '<span class="help">Not 16:9 — the TV fills the screen and crops the edges. The preview above shows the crop.</span>';
+  if (heavy) note += '<span class="help warn-text">Larger than needed. Shrinking it saves data and looks the same.</span>';
+  if (!bucketPath(r.media_url)) note += '<span class="help">Hosted outside Supabase.</span>';
+  $('edFile').innerHTML = '<b>' + (parts.join(' · ') || 'Image') + '</b>' + note;
+  $('edOptimize').hidden = !heavy;
+}
+
+$('edClose').addEventListener('click', () => $('editor').close());
+$('editor').addEventListener('click', (e) => { if (e.target === $('editor')) $('editor').close(); });
+$('editor').addEventListener('close', () => { edRow = null; });
+$('edActive').addEventListener('change', (e) => { if (edRow) setActive(edRow, e.target.checked); });
+$('edZone').addEventListener('change', () => savePatch({ zone: $('edZone').value || null }));
+$('edSchedOn').addEventListener('change', (e) => {
+  $('edSched').hidden = !e.target.checked;
+  if (!e.target.checked && edRow && (edRow.starts_at || edRow.ends_at)){
+    $('edFrom').value = ''; $('edUntil').value = '';
+    savePatch({ starts_at: null, ends_at: null });
+  }
+});
+function saveSchedule(){
+  const from = fromLocalInput($('edFrom').value), until = fromLocalInput($('edUntil').value);
+  if (from && until && Date.parse(until) <= Date.parse(from)){
+    toast('“Hide after” needs to be later than “Show from”.', { type: 'error' });
     return;
   }
-  $('list').innerHTML = assets.map(function(r, i){
-    var zoneLabel = 'All categories';
-    zones.forEach(function(z){ if (z.property === r.property && z.slug === r.zone) zoneLabel = z.label; });
-    var media = r.media_type === 'video'
-      ? '<video class="thumb" src="' + esc(r.media_url) + '" muted playsinline preload="metadata"></video>'
-      : '<img class="thumb" src="' + esc(r.media_url) + '" alt="">';
-    return '<div class="card" data-i="' + i + '">' +
-      media +
-      '<div class="row" style="margin-top:10px">' +
-        '<span class="pill ' + (r.is_active ? 'on' : 'off') + '">' +
-          (r.is_active ? 'LIVE' : 'HIDDEN') + '</span>' +
-        '<span class="pill">' + esc(r.media_type) + '</span>' +
-        '<span class="pill">' + esc(zoneLabel) + '</span>' +
-        '<button class="ghost fix" data-act="up"   ' + (i === 0 ? 'disabled' : '') + '>&uarr;</button>' +
-        '<button class="ghost fix" data-act="down" ' + (i === assets.length-1 ? 'disabled' : '') + '>&darr;</button>' +
-      '</div>' +
-      '<div class="grid">' +
-        '<div><label>Category / Area</label><select data-act="zone"></select></div>' +
-        '<div><label>Duration (seconds)</label>' +
-          '<input type="number" min="1" max="600" value="' + Number(r.duration_seconds) + '" data-act="dur"></div>' +
-        '<div><label>Show from (optional)</label>' +
-          '<input type="datetime-local" value="' + toLocalInput(r.starts_at) + '" data-act="starts"></div>' +
-        '<div><label>Hide after (optional)</label>' +
-          '<input type="datetime-local" value="' + toLocalInput(r.ends_at) + '" data-act="ends"></div>' +
-      '</div>' +
-      '<hr>' +
-      '<div class="row">' +
-        '<button class="ghost" data-act="toggle">' + (r.is_active ? 'Hide from TVs' : 'Show on TVs') + '</button>' +
-        '<button class="danger" data-act="del">Delete row</button>' +
-      '</div>' +
-      '<div class="meta" style="margin-top:8px">' + esc(r.media_url) + '</div>' +
-    '</div>';
-  }).join('');
-
-  /* zone selects need option lists built, not string-injected */
-  Array.prototype.forEach.call($('list').querySelectorAll('[data-act=zone]'), function(sel){
-    var i = Number(sel.closest('[data-i]').getAttribute('data-i'));
-    fillZoneSelect(sel, assets[i].zone);
-  });
+  savePatch({ starts_at: from, ends_at: until });
 }
-
-/* one listener for the whole list */
-$('list').addEventListener('change', function(e){
-  var act = e.target.getAttribute('data-act');
-  if (!act) return;
-  var i = Number(e.target.closest('[data-i]').getAttribute('data-i'));
-  var r = assets[i];
-  if (act === 'zone')   return patch(r.id, { zone: e.target.value || null });
-  if (act === 'dur')    return patch(r.id, { duration_seconds: Math.max(1, Number(e.target.value) || 8) });
-  if (act === 'starts') return patch(r.id, { starts_at: fromLocalInput(e.target.value) });
-  if (act === 'ends')   return patch(r.id, { ends_at:   fromLocalInput(e.target.value) });
+$('edFrom').addEventListener('change', saveSchedule);
+$('edUntil').addEventListener('change', saveSchedule);
+$('edSched').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-preset]');
+  if (!b) return;
+  const d = new Date();
+  d.setDate(d.getDate() + Number(b.dataset.preset));
+  d.setHours(23, 59, 0, 0);
+  $('edUntil').value = toLocalInput(d.toISOString());
+  saveSchedule();
 });
+$('edOptimize').addEventListener('click', () => { if (edRow) optimizeMany([edRow]); });
 
-$('list').addEventListener('click', function(e){
-  var btn = e.target.closest('button[data-act]');
-  if (!btn) return;
-  var act = btn.getAttribute('data-act');
-  var i = Number(btn.closest('[data-i]').getAttribute('data-i'));
-  var r = assets[i];
-  if (act === 'toggle') return patch(r.id, { is_active: !r.is_active });
-  if (act === 'up')     return move(i, -1);
-  if (act === 'down')   return move(i, 1);
-  if (act === 'del')    return removeRow(r);
+$('edDelete').addEventListener('click', () => {
+  const r = edRow, path = bucketPath(r.media_url);
+  const shared = state.assets.some((o) => o.id !== r.id && o.media_url === r.media_url);
+  $('edConfirmText').textContent = !path
+    ? 'This removes the slide. Its image is hosted outside Supabase and won’t be touched.'
+    : shared
+      ? 'This removes the slide. Another slide uses the same image, so the file is kept.'
+      : 'This permanently deletes the slide and its image. The free plan keeps no backups, so it can’t be undone. To just take it off the TVs, switch it off instead.';
+  $('edConfirm').hidden = false; $('edDelete').hidden = true;
+  $('edCancelDel').focus();
 });
+$('edCancelDel').addEventListener('click', () => { $('edConfirm').hidden = true; $('edDelete').hidden = false; $('edDelete').focus(); });
+$('edDoDel').addEventListener('click', async () => { const r = edRow; $('editor').close(); await deleteSlide(r); });
 
-async function patch(id, fields){
-  status('Saving…');
-  var r = await db.from('assets').update(fields).eq('id', id);
-  if (r.error) return fail('Save failed', r.error);
-  status('Saved. TVs pick it up within 5 minutes.', 'ok');
-  loadProperty();
-}
-
-/* Rewrites sort_order across the whole list, so it also repairs duplicates. */
-async function move(i, dir){
-  var j = i + dir;
-  if (j < 0 || j >= assets.length) return;
-  var order = assets.slice();
-  var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
-  status('Reordering…');
-  for (var k = 0; k < order.length; k++){
-    if (order[k].sort_order === k) continue;
-    var r = await db.from('assets').update({ sort_order: k }).eq('id', order[k].id);
-    if (r.error) return fail('Reorder failed', r.error);
-  }
-  status('Reordered.', 'ok');
-  loadProperty();
-}
-
-/* Storage path for a media_url, or null when the file does not live in our bucket.
-   That second case is not hypothetical: video is moving to external hosting (§2.9
-   escalation path 2), and media_url stays absolute precisely so the TV cannot tell the
-   difference (FP4). Deleting such a row must not pretend to delete anything. */
-function bucketPath(url){
-  var marker = '/object/public/' + BUCKET + '/';
-  var i = String(url || '').indexOf(marker);
-  return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
-}
-
-/* Deletes the row AND the file. Owner's decision, taken 2026-08-14 — orphaned files
-   were silently eating the 1 GB storage cap.
-   The cost, stated plainly in the prompt: §5.6 recovery is re-importing the JSON export,
-   and that can only restore media if the file still exists. Storage has no versioning and
-   no backup on the free tier, so a delete here is final. "Hide from TVs" remains the
-   reversible action and the one to reach for by default. */
-async function removeRow(r){
-  var path = bucketPath(r.media_url);
-
-  /* Another row may point at the same file — deleting it would break that slide. */
-  var shared = assets.filter(function(o){
-    return o.id !== r.id && o.media_url === r.media_url;
-  }).length;
-
-  var warning;
-  if (!path){
-    warning = 'The media file is hosted outside Supabase, so only this row will be ' +
-              'removed. The file itself is not touched.';
-  } else if (shared){
-    warning = 'The media file is also used by ' + shared + ' other slide(s), so the file ' +
-              'will be KEPT. Only this row is removed.';
-  } else {
-    warning = 'The media file will be PERMANENTLY DELETED from storage:\n  ' + path +
-              '\n\nThere are no backups on the free tier. A JSON export cannot bring the ' +
-              'file back — only the row.';
-  }
-
-  if (!confirm('Delete this slide?\n\n' + warning +
-               '\n\nTo simply take it off the TVs instead, use "Hide from TVs" — that is ' +
-               'reversible.')) return;
-
-  status('Deleting…');
-  /* Row first. If the file delete then fails we are left with an unused file, which is
-     harmless and visible in the storage meter. The other order would leave a live row
-     pointing at nothing, which the TVs would have to skip. */
-  var d = await db.from('assets').delete().eq('id', r.id);
-  if (d.error) return fail('Delete failed', d.error);
-
+/* Deletes the row and — unless another row shares it, or it lives outside the bucket — its
+   file. Owner's decision 2026-08-14: orphaned files were eating the 1 GB cap. Row first: a
+   failed file delete then leaves an unused file (harmless, flagged in "Needs attention"),
+   whereas the reverse order would leave a live row pointing at nothing. */
+async function deleteSlide(r){
+  r = current(r);
+  const path = bucketPath(r.media_url);
+  const shared = state.assets.some((o) => o.id !== r.id && o.media_url === r.media_url);
+  state.assets = state.assets.filter((o) => o.id !== r.id);
+  renderAll();
+  const d = await db.from('assets').delete().eq('id', r.id);
+  if (d.error){ toast('Couldn’t delete: ' + friendly(d.error), { type: 'error' }); return loadProperty({ quiet: true }); }
   if (path && !shared){
-    var s = await db.storage.from(BUCKET).remove([path]);
-    if (s.error){
-      loadProperty();
-      return fail('Row deleted, but the file could not be removed (' + path + ')', s.error);
-    }
-    status('Slide and its file deleted.', 'ok');
-  } else {
-    status('Row deleted. The file was kept.', 'ok');
+    const s = await db.storage.from(BUCKET).remove([path]);
+    if (s.error) toast('Slide deleted, but its file couldn’t be removed. It will show under “unused files”.', { type: 'error' });
+    else toast('Slide deleted.');
+  } else toast('Slide deleted.');
+  loadProperty({ quiet: true });
+}
+
+/* ---------- image optimisation ----------
+   Shared by upload and by "Shrink" on existing slides. Re-encodes to JPEG at the highest
+   quality that fits TARGET_BYTES, resizing to a 1920 px longest edge. JPEG rather than WebP:
+   Safari cannot encode WebP from a canvas, and JPEG is what has been proven on the TV —
+   including a QR code that still decoded identically after this kind of compression. */
+function loadBitmap(blob){
+  const viaImg = () => new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('This image can’t be read. Export it as JPEG or PNG and try again.')); };
+    img.src = url;
+  });
+  return window.createImageBitmap ? createImageBitmap(blob).catch(viaImg) : viaImg();
+}
+function canvasBlob(canvas, q){ return new Promise((res) => canvas.toBlob(res, 'image/jpeg', q)); }
+async function optimizeImage(blob){
+  const bmp = await loadBitmap(blob);
+  const w = bmp.width, h = bmp.height;
+  const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+  const isJpeg = /jpe?g/i.test(blob.type);
+  /* Already fine: leave the bytes alone rather than re-encode and lose quality for nothing. */
+  if (scale === 1 && isJpeg && blob.size <= TARGET_BYTES){
+    if (bmp.close) bmp.close();
+    return { blob, width: w, height: h, changed: false };
   }
-  loadProperty();
+  const cw = Math.round(w * scale), ch = Math.round(h * scale);
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0b0b0d';            /* transparent PNG areas become the TV's own background */
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, 0, 0, cw, ch);
+  if (bmp.close) bmp.close();
+  let best = await canvasBlob(c, 0.92);
+  if (!best) throw new Error('Couldn’t process this image.');
+  if (best.size > TARGET_BYTES){
+    /* Binary search for the highest quality that still fits. */
+    let lo = 0.5, hi = 0.92, fit = null;
+    for (let i = 0; i < 6; i++){
+      const mid = (lo + hi) / 2, b = await canvasBlob(c, mid);
+      if (b && b.size <= TARGET_BYTES){ fit = b; lo = mid; } else hi = mid;
+    }
+    best = fit || (await canvasBlob(c, 0.5)) || best;
+  }
+  if (scale === 1 && isJpeg && best.size >= blob.size) return { blob, width: w, height: h, changed: false };
+  return { blob: best, width: cw, height: ch, changed: true };
+}
+/* §2.9 path convention — never overwrite, and cacheControl set AT UPLOAD. The value cannot be
+   changed on an already-uploaded file; the only remedy is re-uploading. */
+async function storeBlob(blob){
+  const hash = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : String(Math.random()).slice(2)).slice(0, 8);
+  const path = state.property + '/' + Date.now() + '-' + hash + '.jpg';
+  const { error } = await db.storage.from(BUCKET).upload(path, blob, { cacheControl: CACHE_CTL, upsert: false, contentType: 'image/jpeg' });
+  if (error) throw error;
+  /* absolute URL, deliberately (§2.6 / FP4) */
+  return { path, url: db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
+}
+
+/* Shrink an already-published slide: download → re-encode → upload to a NEW path → point the
+   row at it → delete the old file. This is §5.6's "wrong media file" recovery, automated.
+   Storage serves with CORS *, so the canvas is not tainted. TVs pick up the new URL through
+   Realtime within seconds. */
+async function optimizeSlide(r){
+  r = current(r);
+  const oldPath = bucketPath(r.media_url);
+  if (!oldPath || r.media_type !== 'image') return { skipped: true };
+  const res = await fetch(r.media_url, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Couldn’t download the current image (HTTP ' + res.status + ').');
+  const original = await res.blob();
+  const out = await optimizeImage(original);
+  if (!out.changed || out.blob.size >= original.size) return { skipped: true };
+  const stored = await storeBlob(out.blob);
+  const upd = await db.from('assets').update({ media_url: stored.url }).eq('id', r.id);
+  if (upd.error){ await db.storage.from(BUCKET).remove([stored.path]); throw upd.error; }
+  const shared = state.assets.some((o) => o.id !== r.id && o.media_url === r.media_url);
+  r.media_url = stored.url;
+  if (!shared) await db.storage.from(BUCKET).remove([oldPath]);
+  return { before: original.size, after: out.blob.size };
+}
+let optimizing = false;
+async function optimizeMany(rows){
+  if (optimizing || !rows.length) return;
+  optimizing = true;
+  document.querySelectorAll('[data-attn=optimize], #edOptimize').forEach((b) => { b.disabled = true; });
+  const hide = toast('Shrinking ' + plural(rows.length, 'image', 'images') + '…', { timeout: 600000 });
+  let before = 0, after = 0, done = 0, failed = 0;
+  for (const r of rows){
+    try {
+      const x = await optimizeSlide(r);
+      if (!x.skipped){ before += x.before; after += x.after; done++; }
+    } catch (e){ failed++; console.error(e); }
+  }
+  hide();
+  optimizing = false;
+  if (done) toast(plural(done, 'image', 'images') + ' shrunk: ' + fmtBytes(before) + ' → ' + fmtBytes(after) + '. TVs update within seconds.');
+  if (failed) toast(plural(failed, 'image', 'images') + ' couldn’t be shrunk. Try again, or re-upload.', { type: 'error' });
+  if (!done && !failed) toast('Already as small as it needs to be.');
+  await loadProperty({ quiet: true });
 }
 
 /* ---------- upload ---------- */
-$('file').onchange = function(){
-  pickedFile = this.files && this.files[0];
-  var warn = $('fileWarn');
-  warn.hidden = true; warn.textContent = '';
-  $('btnUp').disabled = true;
-  if (!pickedFile) return;
+let upDur = 8;
+const queue = [];
+let uploading = false;
 
-  /* §3.3 required validation: size, and media_type against the allowed values */
-  if (pickedFile.size > MAX_BYTES){
-    warn.hidden = false;
-    warn.textContent = 'This file is ' + mb(pickedFile.size) +
-      '. The hard limit is 50 MB and it cannot be raised on the free tier.';
-    return;
-  }
-  if (!kindOf(pickedFile)){
-    warn.hidden = false;
-    warn.textContent = 'Only images and MP4 video are allowed.';
-    return;
-  }
-  $('btnUp').disabled = false;
+function initUpload(){
+  const saved = Number(lsGet('signage.duration'));
+  upDur = saved > 0 ? clampDur(saved) : 8;
+  durationPicker($('upDur'), 'upDur', upDur, (v) => { upDur = v; lsSet('signage.duration', v); });
+}
+$('drop').addEventListener('click', () => $('file').click());
+$('drop').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); $('file').click(); } });
+$('file').addEventListener('change', () => { enqueue([...$('file').files]); $('file').value = ''; });
 
-  /* non-blocking advice — wrong-sized artwork is the easiest mistake to make */
-  var notes = [];
-  if (kindOf(pickedFile) === 'image'){
-    if (pickedFile.size > 700 * 1024) notes.push('larger than the 300–500 KB guidance');
-    var img = new Image(), url = URL.createObjectURL(pickedFile);
-    img.onload = function(){
-      if (img.naturalWidth !== 1920 || img.naturalHeight !== 1080){
-        notes.push('this is ' + img.naturalWidth + '×' + img.naturalHeight +
-                   ', the canvas is 1920×1080');
-      }
-      URL.revokeObjectURL(url);
-      if (notes.length){ warn.hidden = false; warn.textContent = 'Will still upload, but: ' + notes.join('; ') + '.'; }
-    };
-    img.src = url;
-  } else if (notes.length){
-    warn.hidden = false; warn.textContent = 'Will still upload, but: ' + notes.join('; ') + '.';
-  }
-};
+/* Drop anywhere on the page, not only on the box — it is the bigger target, and it also stops
+   the browser from navigating away to a file dropped just outside the box. */
+function hasFiles(e){ return e.dataTransfer && [...e.dataTransfer.types].includes('Files'); }
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('drop').classList.add('over'); });
+window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('drop').classList.remove('over'); });
+window.addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; $('drop').classList.remove('over');
+  if (!$('app').hidden) enqueue([...e.dataTransfer.files]);
+});
 
-function kindOf(file){
-  if (/^image\//.test(file.type)) return 'image';
-  if (/^video\//.test(file.type)) return 'video';
+function validate(f){
+  const kind = /^image\//.test(f.type) ? 'image' : /^video\//.test(f.type) ? 'video' : null;
+  if (!kind) return 'Not an image. Use JPEG, PNG or WebP.';
+  if (kind === 'video' && !ALLOW_VIDEO) return 'Video isn’t supported on the TVs yet, so it wouldn’t be shown.';
+  if (f.size > MAX_BYTES) return fmtBytes(f.size) + ' is over the 50 MB limit.';
   return null;
 }
+function queueItem(f){
+  const li = document.createElement('li');
+  li.className = 'q';
+  const url = /^image\/(jpeg|png|webp|gif)/.test(f.type) ? URL.createObjectURL(f) : '';
+  li.innerHTML = (url ? '<img alt="">' : '<div class="q-ph">' + icon('image') + '</div>') +
+    '<div><div class="q-name"></div><div class="q-state"></div></div><div class="q-ic"></div>';
+  li.querySelector('.q-name').textContent = f.name;
+  if (url){
+    const img = li.querySelector('img');
+    img.onload = img.onerror = () => setTimeout(() => URL.revokeObjectURL(url), 500);
+    img.src = url;
+  }
+  $('queue').appendChild(li);
+  return li;
+}
+function setQ(it, kind, text){
+  it.el.className = 'q ' + kind;
+  it.el.querySelector('.q-state').textContent = text;
+  it.el.querySelector('.q-ic').innerHTML =
+    kind === 'work' ? '<span class="spin" aria-hidden="true"></span>' : kind === 'done' ? icon('check') : kind === 'err' ? icon('alert') : '';
+}
+function enqueue(files){
+  if (!files.length) return;
+  const zone = $('upZone').value || null, dur = upDur;
+  for (const f of files){
+    const it = { file: f, zone, dur, el: queueItem(f) };
+    const bad = validate(f);
+    if (bad){ setQ(it, 'err', bad); continue; }
+    setQ(it, 'wait', 'Waiting…');
+    queue.push(it);
+  }
+  if (!uploading) runQueue();
+}
+async function runQueue(){
+  uploading = true;
+  let maxOrder = state.assets.reduce((m, r) => Math.max(m, r.sort_order), -1);
+  let published = 0;
+  while (queue.length){
+    const it = queue.shift();
+    try {
+      setQ(it, 'work', 'Preparing…');
+      const out = await optimizeImage(it.file);
+      setQ(it, 'work', 'Uploading ' + fmtBytes(out.blob.size) + '…');
+      const stored = await storeBlob(out.blob);
+      const { error } = await db.from('assets').insert({
+        property: state.property, zone: it.zone, media_url: stored.url, media_type: 'image',
+        duration_seconds: it.dur, sort_order: ++maxOrder, is_active: true
+      });
+      /* No orphan left behind if the row fails. */
+      if (error){ await db.storage.from(BUCKET).remove([stored.path]); throw error; }
+      published++;
+      let msg = 'Published';
+      if (out.changed) msg += ' · shrunk ' + fmtBytes(it.file.size) + ' → ' + fmtBytes(out.blob.size);
+      if (Math.abs(out.width / out.height - 16 / 9) > 0.02) msg += ' · not 16:9, the TV will crop the edges';
+      setQ(it, 'done', msg);
+    } catch (e){
+      setQ(it, 'err', friendly(e));
+    }
+  }
+  uploading = false;
+  if (published){
+    toast(plural(published, 'slide', 'slides') + ' published. TVs update within seconds.');
+    await loadProperty({ quiet: true });
+    setTimeout(() => { $('queue').querySelectorAll('.q.done').forEach((el) => el.remove()); }, 8000);
+  }
+}
 
-$('btnUp').onclick = async function(){
-  if (!pickedFile) return;
-  var btn = this; btn.disabled = true;
-  var kind = kindOf(pickedFile);
-
-  /* §2.9 path convention — never overwrite, and cacheControl set AT UPLOAD.
-     The value cannot be changed on an already-uploaded file; the only remedy is
-     re-uploading, so it has to be right the first time. */
-  var ext  = (pickedFile.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
-  var hash = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '')
-                                : String(Math.random()).slice(2)).slice(0, 8);
-  var path = currentProperty() + '/' + Date.now() + '-' + hash + '.' + ext;
-
-  status('Uploading ' + mb(pickedFile.size) + '…');
-  var up = await db.storage.from(BUCKET).upload(path, pickedFile, {
-    cacheControl: CACHE_CTL,
-    upsert: false
-  });
-  if (up.error){ btn.disabled = false; return fail('Upload failed', up.error); }
-
-  /* absolute URL, deliberately (§2.6 / FP4) — lets media move hosts later with no TV change */
-  var pub = db.storage.from(BUCKET).getPublicUrl(path);
-  var maxOrder = assets.reduce(function(m, r){ return Math.max(m, r.sort_order); }, -1);
-
-  var ins = await db.from('assets').insert({
-    property:         currentProperty(),
-    zone:             $('upZone').value || null,
-    media_url:        pub.data.publicUrl,
-    media_type:       kind,
-    duration_seconds: Math.max(1, Number($('upDur').value) || 8),
-    sort_order:       maxOrder + 1,
-    is_active:        true
-  });
-  btn.disabled = false;
-  if (ins.error) return fail('Uploaded, but saving the row failed', ins.error);
-
-  $('file').value = ''; pickedFile = null; $('btnUp').disabled = true;
-  $('fileWarn').hidden = true;
-  status('Published. TVs pick it up within 5 minutes.', 'ok');
-  loadProperty();
-};
+/* ---------- TV preview ----------
+   The real TV page in an iframe (with &preview=1, which only hides the Fullscreen icon), so
+   there is no second renderer that could drift from the first. It subscribes to Realtime like
+   a TV does, so edits show up here by themselves. Loaded on demand on phones — it downloads
+   the slides, and that is mobile data. */
+let previewLoaded = false;
+function initPreview(){
+  if (window.matchMedia('(min-width:1024px)').matches) loadPreview();
+  else showPreviewButton();
+  if (window.ResizeObserver) new ResizeObserver(scalePreview).observe($('screen'));
+  else window.addEventListener('resize', scalePreview);
+}
+function renderPreviewTabs(){
+  const zs = zonesHere();
+  if (!zs.some((z) => z.slug === state.previewZone)) state.previewZone = zs.length ? zs[0].slug : null;
+  $('pvTabs').innerHTML = zs.map((z) =>
+    '<button class="tab" type="button" data-zone="' + esc(z.slug) + '" aria-pressed="' + (z.slug === state.previewZone) + '">' + esc(z.label) + '</button>').join('');
+}
+$('pvTabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-zone]');
+  if (!b || b.dataset.zone === state.previewZone) return;
+  state.previewZone = b.dataset.zone;
+  renderPreviewTabs(); renderPreviewCaption(); renderPreviewLinks();
+  if (previewLoaded) loadPreview();
+});
+function tvUrl(preview){
+  return TV_URL + '?property=' + encodeURIComponent(state.property) +
+    (state.previewZone ? '&type=' + encodeURIComponent(state.previewZone) : '') + (preview ? '&preview=1' : '');
+}
+function renderPreviewLinks(){ $('pvOpen').href = tvUrl(false); $('openTv').href = tvUrl(false); }
+function loadPreview(){
+  previewLoaded = true;
+  $('screen').innerHTML = '<iframe title="Live TV preview" src="' + esc(tvUrl(true)) + '" tabindex="-1"></iframe>';
+  scalePreview();
+}
+function showPreviewButton(){
+  $('screen').innerHTML = '<button class="pv-lazy" type="button">' + icon('tv') + '<span>Show what the TVs see</span></button>';
+  $('screen').querySelector('button').addEventListener('click', loadPreview);
+}
+function scalePreview(){
+  const f = $('screen').querySelector('iframe');
+  if (f) f.style.transform = 'scale(' + ($('screen').clientWidth / 1920) + ')';
+}
+function renderPreviewCaption(){
+  const z = state.previewZone;
+  const n = state.assets.filter((r) => statusOf(r).key === 'live' && (!r.zone || r.zone === z)).length;
+  $('pvCap').innerHTML = '<b>' + esc(zoneLabel(z)) + '</b> rooms see <b>' + n + '</b> ' + (n === 1 ? 'slide' : 'slides') +
+    (n ? '' : ' — the offline welcome screen');
+}
 
 /* ---------- export (§2.7 — the only backup that exists) ---------- */
-$('btnExport').onclick = async function(){
-  var btn = this; btn.disabled = true; status('Exporting…');
+$('btnExport').addEventListener('click', exportBackup);
+async function exportBackup(){
+  const btns = document.querySelectorAll('#btnExport, [data-attn=export]');
+  btns.forEach((b) => { b.disabled = true; });
   try {
-    var a = await db.from('assets').select('*').order('property').order('sort_order');
+    const a = await db.from('assets').select('*').order('property').order('sort_order');
     if (a.error) throw a.error;
-    var z = await db.from('zones').select('*').order('property').order('sort_order');
+    const z = await db.from('zones').select('*').order('property').order('sort_order');
     if (z.error) throw z.error;
-
     /* a table export alone does not preserve media, so list the objects too */
-    var props = [], seen = {};
-    (z.data || []).forEach(function(r){ if (!seen[r.property]){ seen[r.property] = 1; props.push(r.property); } });
-    var storage = [];
-    for (var i = 0; i < props.length; i++){
-      var s = await db.storage.from(BUCKET).list(props[i], { limit: 1000 });
+    const props = [...new Set((z.data || []).map((r) => r.property))];
+    const storage = [];
+    for (const p of props){
+      const s = await db.storage.from(BUCKET).list(p, { limit: 1000 });
       storage.push({
-        property: props[i],
+        property: p,
         error: s.error ? s.error.message : null,
-        objects: (s.data || []).map(function(o){
-          return { name: props[i] + '/' + o.name,
-                   size: (o.metadata && o.metadata.size) || null,
-                   created_at: o.created_at || null };
-        })
+        objects: (s.data || []).map((o) => ({ name: p + '/' + o.name, size: (o.metadata && o.metadata.size) || null, created_at: o.created_at || null }))
       });
     }
-
-    var stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    var blob = new Blob([JSON.stringify({
-      exported_at: new Date().toISOString(),
-      supabase_url: SUPABASE_URL,
-      assets: a.data, zones: z.data, storage: storage
+    const blob = new Blob([JSON.stringify({
+      exported_at: new Date().toISOString(), supabase_url: SUPABASE_URL,
+      assets: a.data, zones: z.data, storage
     }, null, 2)], { type: 'application/json' });
-
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url; link.download = 'signage-backup-' + stamp + '.json';
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
-    status('Exported ' + (a.data || []).length + ' rows. Keep this file somewhere safe.', 'ok');
-  } catch (err){ fail('Export failed', err); }
-  btn.disabled = false;
-};
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'signage-backup-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    lsSet('signage.lastExport', Date.now());
+    renderTiles(); renderAttention();
+    toast('Backup saved (' + plural((a.data || []).length, 'slide', 'slides') + '). Keep the file somewhere safe.');
+  } catch (err){
+    toast('Export failed: ' + friendly(err), { type: 'error' });
+  }
+  btns.forEach((b) => { b.disabled = false; });
+}
 </script>
 </body>
 </html>
